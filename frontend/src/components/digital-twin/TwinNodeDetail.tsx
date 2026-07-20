@@ -1,190 +1,218 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { api, Asset } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { X, Server, Monitor, Shield, Database, Wifi, Activity, ArrowRight, Play } from 'lucide-react';
-
-interface TwinNodeData {
-  id: string;
-  label: string;
-  type: string;
-  status: 'healthy' | 'degraded' | 'compromised' | 'recovering';
-  ip: string;
-  risk: number;
-}
-
-const connectedAssets = [
-  { id: 'ws-12', label: 'WS-12', type: 'Workstation', risk: 88 },
-  { id: 'ws-08', label: 'WS-08', type: 'Workstation', risk: 45 },
-  { id: 'fw-1', label: 'Firewall', type: 'Network', risk: 5 },
-];
-
-const recentEvents = [
-  { time: '2 min ago', event: 'LSASS memory access detected', severity: 'critical' as const },
-  { time: '8 min ago', event: 'Suspicious scheduled task created', severity: 'high' as const },
-  { time: '15 min ago', event: 'Unusual network connection to 10.0.2.12', severity: 'medium' as const },
-];
-
-const attackPaths = [
-  { from: 'Firewall', to: 'DC-01', probability: '87%', mitre: 'T1047' },
-  { from: 'DC-01', to: 'SQL-01', probability: '72%', mitre: 'T1486' },
-];
+import { InlineError, LoadingState } from '@/components/ui/States';
+import {
+  X,
+  Server,
+  Monitor,
+  Shield,
+  Database,
+  Wifi,
+  Activity,
+  Box,
+  Cpu,
+  HardDrive,
+} from 'lucide-react';
 
 const typeIcons: Record<string, React.ReactNode> = {
-  Server: <Server className="h-4 w-4" />,
-  Database: <Database className="h-4 w-4" />,
-  Workstation: <Monitor className="h-4 w-4" />,
-  Network: <Wifi className="h-4 w-4" />,
-  Firewall: <Shield className="h-4 w-4" />,
+  server: <Server className="h-4 w-4" />,
+  database: <Database className="h-4 w-4" />,
+  workstation: <Monitor className="h-4 w-4" />,
+  network_device: <Wifi className="h-4 w-4" />,
+  security_appliance: <Shield className="h-4 w-4" />,
 };
 
-interface TwinNodeDetailProps {
-  node: TwinNodeData;
-  onClose: () => void;
+function Gauge({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number | null;
+  icon: React.ReactNode;
+}) {
+  if (value === null || value === undefined) return null;
+  const color =
+    value > 85 ? 'bg-accent-red' : value > 60 ? 'bg-accent-yellow' : 'bg-accent-green';
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="flex items-center gap-1.5 text-[10px] text-gray-400">
+          {icon}
+          {label}
+        </span>
+        <span className="text-[10px] font-mono text-white">{value.toFixed(0)}%</span>
+      </div>
+      <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all', color)}
+          style={{ width: `${Math.min(value, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
-export function TwinNodeDetail({ node, onClose }: TwinNodeDetailProps) {
-  const riskColor = node.risk > 70 ? 'text-accent-red' : node.risk > 40 ? 'text-accent-yellow' : 'text-accent-green';
+/**
+ * Asset detail sourced from GET /digital-twin/assets/{id} plus its live state.
+ * Connected assets, recent events and predicted attack paths are no longer
+ * shown here — the previous version hardcoded all three.
+ */
+export function TwinNodeDetail({
+  asset,
+  onClose,
+}: {
+  asset: Asset;
+  onClose: () => void;
+}) {
+  const stateQuery = useApi(() => api.getAssetState(asset.id), [asset.id], 5000);
+  const live = stateQuery.data;
+
+  const criticalityVariant =
+    asset.criticality === 'critical'
+      ? 'danger'
+      : asset.criticality === 'high'
+        ? 'warning'
+        : asset.criticality === 'medium'
+          ? 'info'
+          : 'success';
 
   return (
     <div className="bg-surface-card/95 backdrop-blur-md border border-surface-border rounded-xl shadow-2xl max-h-[560px] overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border sticky top-0 bg-surface-card/95 backdrop-blur-md z-10">
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            'p-1.5 rounded',
-            node.type === 'Server' && 'bg-blue-500/20 text-blue-400',
-            node.type === 'Database' && 'bg-purple-500/20 text-purple-400',
-            node.type === 'Workstation' && 'bg-gray-500/20 text-gray-300',
-            node.type === 'Network' && 'bg-green-500/20 text-green-400',
-            node.type === 'Firewall' && 'bg-accent-cyan/20 text-accent-cyan',
-          )}>
-            {typeIcons[node.type] || <Activity className="h-4 w-4" />}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-1.5 rounded bg-accent-cyan/15 text-accent-cyan shrink-0">
+            {typeIcons[asset.asset_type] || <Box className="h-4 w-4" />}
           </div>
-          <div>
-            <h4 className="text-sm font-semibold text-white">{node.label}</h4>
-            <p className="text-[10px] text-gray-500">{node.type}</p>
+          <div className="min-w-0">
+            <h4 className="text-sm font-semibold text-white truncate">{asset.name}</h4>
+            <p className="text-[10px] text-gray-500">
+              {asset.asset_type.replace(/_/g, ' ')}
+            </p>
           </div>
         </div>
-        <button onClick={onClose} className="p-1 text-gray-400 hover:text-white hover:bg-surface-border rounded transition-colors">
+        <button
+          onClick={onClose}
+          className="p-1 text-gray-400 hover:text-white hover:bg-surface-border rounded transition-colors shrink-0"
+        >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Status & IP */}
         <div className="grid grid-cols-2 gap-3">
           <div className="px-3 py-2 rounded-lg bg-surface/50">
-            <p className="text-[10px] text-gray-500 mb-0.5">Status</p>
-            <Badge
-              variant={
-                node.status === 'compromised' ? 'danger' :
-                node.status === 'degraded' ? 'warning' :
-                node.status === 'healthy' ? 'success' : 'info'
-              }
-              size="sm"
-            >
-              {node.status}
+            <p className="text-[10px] text-gray-500 mb-0.5">Criticality</p>
+            <Badge variant={criticalityVariant} size="sm">
+              {asset.criticality}
             </Badge>
           </div>
           <div className="px-3 py-2 rounded-lg bg-surface/50">
             <p className="text-[10px] text-gray-500 mb-0.5">IP Address</p>
-            <p className="text-xs text-white font-mono">{node.ip}</p>
+            <p className="text-xs text-white font-mono truncate">
+              {asset.ip_address || '—'}
+            </p>
           </div>
         </div>
 
-        {/* Risk Score */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-gray-400">Risk Score</span>
-            <span className={cn('text-sm font-bold font-mono', riskColor)}>{node.risk}%</span>
-          </div>
-          <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-            <div
-              className={cn(
-                'h-full rounded-full transition-all',
-                node.risk > 70 ? 'bg-accent-red' : node.risk > 40 ? 'bg-accent-yellow' : 'bg-accent-green'
-              )}
-              style={{ width: `${node.risk}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Connected Assets */}
-        <div>
-          <p className="text-xs text-gray-400 font-medium mb-2">Connected Assets</p>
-          <div className="space-y-1.5">
-            {connectedAssets.map((asset) => (
-              <div key={asset.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface/50 hover:bg-surface-border transition-colors cursor-pointer">
-                <div className="p-1 rounded bg-surface text-gray-400">
-                  <Monitor className="h-3 w-3" />
-                </div>
-                <span className="text-xs text-white flex-1">{asset.label}</span>
-                <span className={cn(
-                  'text-[10px] font-mono font-medium',
-                  asset.risk > 70 ? 'text-accent-red' : asset.risk > 40 ? 'text-accent-yellow' : 'text-accent-green'
-                )}>
-                  {asset.risk}%
+        <div className="space-y-2">
+          {[
+            ['Hostname', asset.hostname],
+            ['Domain', asset.domain],
+            ['OS', asset.os ? `${asset.os} ${asset.os_version ?? ''}`.trim() : null],
+            ['Location', asset.location],
+            ['Department', asset.department],
+            ['Owner', asset.owner],
+          ]
+            .filter(([, value]) => value)
+            .map(([label, value]) => (
+              <div key={label as string} className="flex items-start gap-2">
+                <span className="text-[10px] text-gray-500 w-20 shrink-0">
+                  {label as string}
+                </span>
+                <span className="text-xs text-gray-200 font-mono min-w-0 break-all">
+                  {value as string}
                 </span>
               </div>
             ))}
-          </div>
         </div>
 
-        {/* Recent Events */}
-        <div>
-          <p className="text-xs text-gray-400 font-medium mb-2">Recent Events</p>
-          <div className="space-y-1.5">
-            {recentEvents.map((evt, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-xs">
-                <div className={cn(
-                  'w-1.5 h-1.5 rounded-full mt-1.5 shrink-0',
-                  evt.severity === 'critical' ? 'bg-accent-red' :
-                  evt.severity === 'high' ? 'bg-accent-orange' :
-                  evt.severity === 'medium' ? 'bg-accent-yellow' : 'bg-accent-cyan'
-                )} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-gray-300">{evt.event}</p>
-                  <p className="text-[10px] text-gray-600">{evt.time}</p>
+        {asset.tags?.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {asset.tags.map((tag) => (
+              <Badge key={tag} variant="default" size="sm">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Live telemetry */}
+        <div className="pt-2 border-t border-surface-border">
+          <p className="text-xs text-gray-400 font-medium mb-2">Live State</p>
+          {stateQuery.initialLoading && <LoadingState label="Reading state…" />}
+          {stateQuery.error && <InlineError error={stateQuery.error} />}
+          {live && !stateQuery.error && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500">Status</span>
+                <Badge
+                  variant={live.current_status === 'healthy' ? 'success' : 'warning'}
+                  size="sm"
+                >
+                  {live.current_status}
+                </Badge>
+              </div>
+              <Gauge
+                label="CPU"
+                value={live.cpu_usage}
+                icon={<Cpu className="h-3 w-3" />}
+              />
+              <Gauge
+                label="Memory"
+                value={live.memory_usage}
+                icon={<Activity className="h-3 w-3" />}
+              />
+              <Gauge
+                label="Disk"
+                value={live.disk_usage}
+                icon={<HardDrive className="h-3 w-3" />}
+              />
+
+              {live.open_ports && live.open_ports.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-gray-500 mb-1">Open ports</p>
+                  <div className="flex flex-wrap gap-1">
+                    {live.open_ports.map((port) => (
+                      <span
+                        key={port}
+                        className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-surface-border/60 text-gray-300"
+                      >
+                        {port}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              )}
 
-        {/* Attack Paths */}
-        <div>
-          <p className="text-xs text-gray-400 font-medium mb-2">Predicted Attack Paths</p>
-          <div className="space-y-1.5">
-            {attackPaths.map((path, idx) => (
-              <div key={idx} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-accent-red/5 border border-accent-red/10">
-                <span className="text-[10px] text-gray-500 font-mono">{path.mitre}</span>
-                <span className="text-xs text-gray-300">{path.from}</span>
-                <ArrowRight className="h-3 w-3 text-accent-red" />
-                <span className="text-xs text-gray-300">{path.to}</span>
-                <span className="ml-auto text-[10px] text-accent-red font-mono">{path.probability}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+              {live.vulnerabilities && live.vulnerabilities.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-accent-red mb-1">
+                    {live.vulnerabilities.length} vulnerabilities
+                  </p>
+                </div>
+              )}
 
-        {/* Response Actions */}
-        <div className="pt-2">
-          <p className="text-xs text-gray-400 font-medium mb-2">Response Actions</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button size="sm" variant="danger">
-              <Shield className="h-3.5 w-3.5" />
-              Isolate
-            </Button>
-            <Button size="sm" variant="secondary">
-              <Activity className="h-3.5 w-3.5" />
-              Scan
-            </Button>
-            <Button size="sm" variant="secondary" className="col-span-2">
-              <Play className="h-3.5 w-3.5" />
-              Run Automated Response
-            </Button>
-          </div>
+              <p className="text-[10px] text-gray-600 font-mono">
+                updated {new Date(live.last_updated).toLocaleTimeString()}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

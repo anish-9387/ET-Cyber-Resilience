@@ -20,18 +20,97 @@ import {
   X,
   LogOut,
   User,
+  Globe,
+  GitBranch,
+  Scale,
+  Target,
+  ScrollText,
+  PlayCircle,
 } from 'lucide-react';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
+import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/digital-twin', label: 'Digital Twin', icon: Server },
-  { href: '/incidents', label: 'Incidents', icon: AlertTriangle },
-  { href: '/threat-intel', label: 'Threat Intel', icon: Brain },
-  { href: '/agents', label: 'Agents', icon: Users },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/settings', label: 'Settings', icon: Settings },
+const navGroups: {
+  label: string;
+  items: { href: string; label: string; icon: typeof LayoutDashboard }[];
+}[] = [
+  {
+    label: 'Overview',
+    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+  },
+  {
+    label: 'Reasoning',
+    items: [
+      { href: '/world-model', label: 'World Model', icon: Globe },
+      { href: '/forecast', label: 'Forecast', icon: GitBranch },
+      { href: '/decision', label: 'Decision', icon: Scale },
+      { href: '/mission', label: 'Mission Impact', icon: Target },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { href: '/scenario', label: 'Scenario', icon: PlayCircle },
+      { href: '/digital-twin', label: 'Digital Twin', icon: Server },
+      { href: '/incidents', label: 'Incidents', icon: AlertTriangle },
+      { href: '/threat-intel', label: 'Threat Intel', icon: Brain },
+      { href: '/agents', label: 'Agents', icon: Users },
+    ],
+  },
+  {
+    label: 'Assurance',
+    items: [
+      { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+      { href: '/audit', label: 'Audit Trail', icon: ScrollText },
+      { href: '/settings', label: 'Settings', icon: Settings },
+    ],
+  },
 ];
+
+/** Live backend status — replaces the previously hardcoded "operational". */
+function BackendStatus() {
+  const { data, error, initialLoading } = useApi(() => api.getHealth(), [], 15000);
+
+  if (initialLoading) {
+    return <span className="text-xs text-gray-500 hidden sm:inline">Checking…</span>;
+  }
+  if (error) {
+    return (
+      <>
+        <StatusIndicator status="error" size="sm" showLabel={false} />
+        <span className="text-xs text-accent-red hidden sm:inline">
+          {error.offline ? 'Backend unreachable' : 'Backend degraded'}
+        </span>
+      </>
+    );
+  }
+
+  const healthy = data?.status === 'healthy';
+  const unhealthy = Object.entries(data?.services ?? {})
+    .filter(([, s]) => s.status !== 'healthy')
+    .map(([name]) => name);
+
+  return (
+    <>
+      <StatusIndicator
+        status={healthy ? 'healthy' : 'degraded'}
+        size="sm"
+        showLabel={false}
+      />
+      <span
+        className={cn(
+          'text-xs hidden sm:inline',
+          healthy ? 'text-gray-400' : 'text-accent-yellow'
+        )}
+      >
+        {healthy
+          ? 'All systems operational'
+          : `Degraded: ${unhealthy.join(', ') || 'unknown'}`}
+      </span>
+    </>
+  );
+}
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -77,32 +156,41 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname?.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
-                  active
-                    ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20'
-                    : 'text-gray-400 hover:text-white hover:bg-surface-border',
-                  collapsed && 'justify-center px-2'
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-                {active && !collapsed && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-cyan shadow-glow-cyan" />
-                )}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-4">
+          {navGroups.map((group) => (
+            <div key={group.label} className="space-y-1">
+              {!collapsed && (
+                <p className="px-3 pb-1 text-[9px] font-semibold uppercase tracking-wider text-gray-600">
+                  {group.label}
+                </p>
+              )}
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = pathname?.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                      active
+                        ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20'
+                        : 'text-gray-400 hover:text-white hover:bg-surface-border',
+                      collapsed && 'justify-center px-2'
+                    )}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                    {active && !collapsed && (
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-cyan shadow-glow-cyan" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Collapse toggle */}
@@ -126,16 +214,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Menu className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
-              <StatusIndicator status="healthy" size="sm" />
-              <span className="text-xs text-gray-400 hidden sm:inline">All systems operational</span>
+              <BackendStatus />
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             {/* Notifications */}
+            {/* No notifications endpoint exists, so no unread indicator is shown. */}
             <button className="relative p-2 text-gray-400 hover:text-white hover:bg-surface-border rounded-lg transition-colors">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-accent-red rounded-full animate-pulse shadow-glow-red" />
             </button>
 
             {/* User avatar */}

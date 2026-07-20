@@ -1,133 +1,156 @@
-# Sentinel-X: AI-Powered Cyber Resilience Digital Twin
+# Sentinel — Cyber World Model for Critical National Infrastructure
 
-> **Predict. Simulate. Prevent.**
+Sentinel maintains a **living probabilistic model** of an organisation's cyber
+environment. Rather than asking "did an attack happen?", it asks what the
+environment currently looks like, what the attacker is probably trying to
+achieve, which futures are most likely, and which defensive action produces the
+safest one.
 
-An AI platform that continuously predicts, simulates, explains, and autonomously stops cyber attacks before damage occurs.
+**Observe → Understand → Build World Model → Reason → Predict → Plan → Respond → Learn**
 
-## Architecture
+See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and
+[API_CONTRACT.md](API_CONTRACT.md) for the full API.
 
-Instead of the traditional **Detect → Respond** workflow, Sentinel-X implements:
+---
 
-**Predict → Simulate → Verify → Respond → Learn**
+## Quick start
 
-## The Seven AI Agents
+Nothing except Python and Node is required. The backend runs on SQLite with
+Neo4j, Qdrant, Redis and Ollama all absent.
 
-| Agent | Function |
-|-------|----------|
-| 1. Behaviour Learning Agent | Learns normal behaviour for users, servers, devices, OT |
-| 2. Attack Story Builder | Correlates alerts into MITRE ATT&CK attack chains |
-| 3. Threat Prediction Agent | Predicts next attacker moves with probability & ETA |
-| 4. Cyber Digital Twin Agent | Maintains live virtual copy for safe simulation |
-| 5. Autonomous Response Agent | Executes playbooks with human approval for critical actions |
-| 6. Adaptive Patch Prioritization | Ranks patches by business risk, not just CVSS |
-| 7. Self-Learning Memory | Remembers past incidents for faster future response |
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14, TypeScript, TailwindCSS, React Flow, Three.js |
-| Backend | FastAPI, Python 3.11 |
-| Graph DB | Neo4j (Knowledge Graph) |
-| Vector DB | Qdrant |
-| Cache/Queue | Redis, Apache Kafka |
-| AI/ML | LangGraph, CrewAI, Ollama, Llama 3.1, Isolation Forest, Autoencoder |
-| Security | Wazuh, Zeek, MITRE ATT&CK, CISA KEV, CERT-In |
-
-## Quick Start
-
-### Prerequisites
-- Python 3.11+
-- Node.js 20+
-
-### 1. Clone and Setup
 ```bash
-git clone <repo-url>
-cd sentinel-x
-
 # Backend
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+uvicorn app.main:app --port 8000          # http://localhost:8000/docs
 
-# Frontend
-cd ../frontend
-npm install
+# Frontend (separate terminal)
+cd frontend && npm install && npm run dev  # http://localhost:3000
 ```
 
-### 2. Seed Data
+Then drive the whole pipeline:
+
 ```bash
-cd ../scripts
-python seed_knowledge_graph.py
-python create_sample_incidents.py
+python scripts/demo_attack_scenario.py --scenario lockbit_hospital
 ```
 
-### 4. Run Development Servers
+This ingests a labelled LockBit chain, updates the world model, infers attacker
+intent, forecasts futures, runs a counterfactual, ranks containment options and
+prints the audit trail. It has **no fallback values**: if the backend is down or
+an endpoint is missing it fails loudly and exits non-zero.
+
+---
+
+## What is actually measured
+
+**Do not trust performance claims in a README — including this one.** Run the
+harness and read the numbers it prints:
+
 ```bash
-# Terminal 1 - Backend
-cd backend
-uvicorn app.main:app --reload --port 8000
-
-# Terminal 2 - Frontend
-cd frontend
-npm run dev
+cd backend && python -m app.evaluation.runner
 ```
 
-### 5. Open Dashboard
-Visit http://localhost:3000
+It computes, at run time and from code:
 
-## Demo Scenario
+| Criterion | Where |
+|---|---|
+| Detection rate / false-positive rate, ROC-AUC, threshold sweep | `app/evaluation/detection_eval.py` |
+| MITRE attribution accuracy at technique and tactic level | `app/evaluation/attribution_eval.py` |
+| Response automation coverage | `app/evaluation/response_eval.py` |
+| MTTD / MTTR vs an external baseline | `app/evaluation/timing_eval.py` |
 
-### Ransomware Attack Simulation
+Also exposed at `/api/v1/evaluation/*` and rendered on `/analytics`.
 
-1. **Phishing Email** → User receives targeted phishing email
-2. **Macro Execution** → Malicious macro downloads payload
-3. **PowerShell** → Cobalt Strike beacon executes
-4. **Credential Dumping** → Mimikatz steals domain credentials
-5. **Lateral Movement** → Attacker moves to File Server
-6. **Domain Controller** → Privilege escalation attempt
-7. **Ransomware** → Files encrypted on critical shares
+An earlier version of this file claimed "82% prediction accuracy", "90% false
+positive reduction" and "MTTR reduced from hours to seconds". **No code computed
+any of those numbers.** They have been removed rather than restated. The
+evaluation package exists so that every such claim is reproducible or absent.
 
-### AI Responses at Each Step
-- **Behaviour Agent** detects anomalous PowerShell usage
-- **Attack Story Builder** correlates events into attack chain
-- **Threat Prediction** predicts next move with 82% accuracy
-- **Digital Twin** simulates blast radius without production impact
-- **Response Agent** isolates endpoint, rotates credentials
-- **Learning Agent** stores attack pattern for future prevention
+### Known limits, stated up front
 
-### Key Metrics
-- **MTTD**: Reduced from days to minutes
-- **MTTR**: Reduced from hours to seconds
-- **False Positives**: Reduced by 90% via multi-agent confidence fusion
+- **The benchmark corpus is synthetic.** Deterministic under a fixed seed, built
+  from the bundled scenarios. It is not real-world performance. An adapter for
+  CICIDS2017 / UNSW-NB15 / BETH is documented in `app/evaluation/datasets.py`.
+- **Response execution is simulated.** `SimulatedExecutor` renders and records
+  commands; there is no firewall, AD, EDR or hypervisor integration. Every
+  payload carries `mode: "simulated"`, `integration: "none"`, `enforced: false`.
+  Automation coverage reports `steps_automatable_by_policy` separately from
+  `steps_with_real_integration` (which is zero).
+- **MITRE coverage is partial** — 49 of ~625 Enterprise techniques and no
+  sub-techniques. The attribution report states this ceiling explicitly.
+- **The MTTD/MTTR baseline is an external industry reference**, not a SOC
+  measured here, and is not a like-for-like comparison.
+- **CERT-In ingestion is a stub.** MITRE CTI, CISA KEV and NVD fetchers are real.
+- The audit trail is in-memory and does not survive a restart.
 
-## API Documentation
+---
 
-Full API docs available at http://localhost:8000/docs when backend is running.
+## Capabilities
 
-## Project Structure
+| | |
+|---|---|
+| **Probabilistic world model** | Per-entity `P(compromised)` with confidence, updated by Bayesian evidence fusion in log-odds space, with recency decay and direction-aware neighbour propagation |
+| **Attacker belief** | Objective inference, inferred attacker knowledge, campaign attribution by technique-set Jaccard similarity |
+| **Defender belief** | Models Sentinel's *own* uncertainty — which beliefs are weak, what evidence is missing, what to collect next |
+| **Attack forecast** | Deterministic probability-tree expansion into multiple ranked futures with target entities and ETAs |
+| **Counterfactual** | Applies interventions to a model clone, re-forecasts, reports which attack paths were severed |
+| **Mission impact** | Availability of patient care, emergency response, diagnostics, records, power and water as dependent-entity beliefs shift |
+| **Decision engine** | Ranks real playbooks by attack-success reduction against mission impact and recovery cost, with alternatives recorded |
+| **Human-in-the-loop** | Gated actions cannot self-approve. Approval requires an authenticated principal holding an approver role |
+| **Audit trail** | Append-only record of every belief update and automated decision, with evidence, reasoning, alternatives considered, approver and rollback handle |
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 14, TypeScript, Tailwind, React Flow, Three.js, Recharts |
+| Backend | FastAPI, Python 3.11+ |
+| Relational | SQLite (default) or PostgreSQL |
+| ML | scikit-learn (IsolationForest), NumPy, NetworkX |
+| Optional | Neo4j, Qdrant, Redis, Ollama, sentence-transformers |
+| Threat intel | MITRE ATT&CK, CISA KEV, NVD |
+| Telemetry formats | Windows/Sysmon, Linux, syslog, auditd, Zeek, Suricata, Wazuh, firewall, CloudTrail |
+
+Kafka, LangGraph and CrewAI were previously listed here. None are used —
+orchestration is a hand-rolled coordinator and the event bus is in-process with
+optional Redis pub/sub.
+
+---
+
+## Scenarios
+
+| ID | Chain |
+|---|---|
+| `lockbit_hospital` | Phishing → credential dumping → lateral movement → backup destruction → encryption |
+| `apt29_espionage` | Slow espionage over days ending in cloud exfiltration |
+| `ot_water_scada` | OT/SCADA intrusion ending in a chlorine-dosing safety event |
+
+Each event carries ground-truth `is_malicious` and `true_technique` labels, which
+is what makes the evaluation harness possible.
+
+```bash
+curl -X POST localhost:8000/api/v1/scenario/run \
+  -H 'Content-Type: application/json' \
+  -d '{"scenario_id":"lockbit_hospital","speed":20}'
 ```
-sentinel-x/
-├── backend/
-│   ├── app/
-│   │   ├── agents/          # AI Agent implementations
-│   │   ├── api/             # REST API endpoints
-│   │   ├── core/            # Configuration, database, security
-│   │   ├── digital_twin/    # Digital Twin engine
-│   │   ├── knowledge_graph/ # Neo4j graph management
-│   │   ├── ml/              # ML models (Isolation Forest, LSTM, GNN)
-│   │   ├── models/          # SQLAlchemy ORM models
-│   │   ├── schemas/         # Pydantic schemas
-│   │   ├── services/        # Business logic services
-│   │   └── utils/           # Utilities (MITRE mapping, etc.)
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── app/             # Next.js pages
-│   │   ├── components/      # React components
-│   │   └── lib/             # API client, utilities
-│   └── package.json
-├── scripts/                 # Seed data & demo scripts
-└── docs/                    # Documentation
+
+## Tests
+
+```bash
+cd backend && python -m pytest -q
+```
+
+## Layout
+
+```
+backend/app/
+  world_model/   entity state, Bayesian fusion, attacker/defender belief,
+                 forecast, counterfactual, mission impact, decision engine, audit
+  agents/        behaviour, MITRE mapper, prediction, response, playbooks, ...
+  ml/            IsolationForest detector, sequence model, structural embedder
+  services/      telemetry normalizers, threat intel, analytics, notifications
+  evaluation/    labelled corpus + detection/attribution/response/timing harnesses
+  scenarios/     labelled APT chains
+frontend/src/app/  14 routes
 ```

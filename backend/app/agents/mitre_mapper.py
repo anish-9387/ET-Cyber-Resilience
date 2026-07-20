@@ -1,6 +1,40 @@
 from typing import Dict, Any, Optional, List, Tuple
 from difflib import SequenceMatcher
+import re
+
 from app.core.logger import logger
+
+
+TECHNIQUE_ID_RE = re.compile(r"^T\d{4}(\.\d{3})?$", re.IGNORECASE)
+
+#: Minimum string similarity for the last-resort fuzzy name match.
+#:
+#: The keyword table below is the designed mapping path and covers the
+#: `[rule: ...]` tags real Sigma/SIEM detections carry. Fuzzy name matching is
+#: only a fallback, and at the previous 0.3 threshold it fired on almost
+#: anything - a benign Windows logon matched "Email Collection" (T1114) - which
+#: injects phantom techniques into attribution and objective scoring.
+FUZZY_MATCH_THRESHOLD = 0.75
+
+#: Confidence for an exact keyword/rule-tag hit, the designed mapping path.
+KEYWORD_MATCH_CONFIDENCE = 0.85
+
+
+def normalize_technique_id(value: Any) -> Optional[str]:
+    """Return the canonical parent technique id, or None if this is not one.
+
+    ATT&CK sub-technique ids (`T1486.001`) collapse to their parent (`T1486`)
+    so that observation streams and the scoring tables - which are keyed on
+    parent techniques - compare on the same alphabet. Sentinel values such as
+    `"UNKNOWN"`, `None` or free text return None so they can never be counted
+    as an observed technique.
+    """
+    if not value:
+        return None
+    candidate = str(value).strip().upper()
+    if not TECHNIQUE_ID_RE.match(candidate):
+        return None
+    return candidate.split(".", 1)[0]
 
 
 MITRE_ATTACK_DATA = {
@@ -95,9 +129,13 @@ class MitreMapper:
         self._technique_cache: Dict[str, Dict[str, Any]] = {}
         for tactic in MITRE_ATTACK_DATA.values():
             for tid, technique in tactic.items():
-                self._technique_cache[tid] = technique
-                self._technique_cache[technique["name"].lower()] = technique
-                self._technique_cache[tid.lower()] = technique
+                # Cache entries carry their own id: the fuzzy-match path in
+                # find_technique returns these dicts directly, and without it
+                # map_event fell back to the literal string "UNKNOWN".
+                entry = {**technique, "technique_id": tid}
+                self._technique_cache.setdefault(tid, entry)
+                self._technique_cache.setdefault(technique["name"].lower(), entry)
+                self._technique_cache.setdefault(tid.lower(), entry)
 
     def find_technique(self, event_type: str, raw_data: Optional[str] = None) -> Optional[Dict[str, Any]]:
         event_lower = event_type.lower().replace("_", " ").replace("-", " ")
@@ -130,17 +168,17 @@ class MitreMapper:
 
         for keyword, tid in keyword_map.items():
             if keyword in event_lower:
-                return self.get_technique(tid)
+                return self._annotate(self.get_technique(tid), KEYWORD_MATCH_CONFIDENCE, "keyword")
 
         if raw_data:
             raw_lower = raw_data.lower()
             for keyword, tid in keyword_map.items():
                 if keyword in raw_lower:
-                    return self.get_technique(tid)
+                    return self._annotate(self.get_technique(tid), KEYWORD_MATCH_CONFIDENCE, "keyword")
 
         best_match = None
-        best_ratio = 0.3
-        for tid, technique in self._technique_cache.items():
+        best_ratio = FUZZY_MATCH_THRESHOLD
+        for tid, technique in sorted(self._technique_cache.items()):
             if tid.startswith("T"):
                 name_lower = technique["name"].lower()
                 ratio = SequenceMatcher(None, event_lower, name_lower).ratio()
@@ -148,7 +186,17 @@ class MitreMapper:
                     best_ratio = ratio
                     best_match = technique
 
-        return best_match
+        # A fuzzy hit reports its own measured similarity rather than borrowing
+        # the confidence of an exact keyword match.
+        return self._annotate(best_match, round(best_ratio, 4), "fuzzy_name") if best_match else None
+
+    @staticmethod
+    def _annotate(
+        technique: Optional[Dict[str, Any]], confidence: float, method: str
+    ) -> Optional[Dict[str, Any]]:
+        if not technique:
+            return None
+        return {**technique, "match_confidence": confidence, "match_method": method}
 
     def get_technique(self, technique_id: str) -> Optional[Dict[str, Any]]:
         for tactic in MITRE_ATTACK_DATA.values():
@@ -182,8 +230,11 @@ class MitreMapper:
         event_type = event_data.get("event_type", event_data.get("type", ""))
         raw_data = event_data.get("raw", event_data.get("description", ""))
         technique = self.find_technique(event_type, raw_data)
+        technique_id = normalize_technique_id((technique or {}).get("technique_id"))
 
-        if not technique:
+        if not technique or not technique_id:
+            # An unresolvable match is an unmapped event. Emitting a sentinel
+            # id here poisons every downstream technique-set computation.
             return {
                 "mapped": False,
                 "technique_id": None,
@@ -195,11 +246,12 @@ class MitreMapper:
 
         return {
             "mapped": True,
-            "technique_id": technique.get("technique_id", "UNKNOWN"),
+            "technique_id": technique_id,
             "technique_name": technique.get("name", "Unknown"),
             "tactic": technique.get("tactic", "Unknown"),
             "detection": technique.get("detection", []),
-            "confidence": 0.85,
+            "confidence": technique.get("match_confidence", KEYWORD_MATCH_CONFIDENCE),
+            "match_method": technique.get("match_method", "keyword"),
         }
 
     def get_next_likely_techniques(self, current_technique: str) -> List[Dict[str, Any]]:

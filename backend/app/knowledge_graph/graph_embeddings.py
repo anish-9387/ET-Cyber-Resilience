@@ -1,20 +1,42 @@
+"""Vector memory over knowledge-graph nodes.
+
+Both sentence-transformers and Qdrant are optional. The module imports cleanly
+without either installed or running; every entry point checks ``self.available``
+first so a missing vector store degrades to "no semantic recall" rather than an
+import-time crash.
+"""
+
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from app.core.database import qdrant_client
 from app.core.config import settings
 from app.core.logger import logger
-from qdrant_client.http.models import (
-    PointStruct,
-    VectorParams,
-    Distance,
-    CollectionStatus,
-    Filter,
-    FieldCondition,
-    MatchValue,
-    ScoredPoint,
-)
 import uuid
+
+try:
+    from sentence_transformers import SentenceTransformer
+
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional heavy dependency
+    SentenceTransformer = None
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+
+try:
+    from qdrant_client.http.models import (
+        PointStruct,
+        VectorParams,
+        Distance,
+        Filter,
+        FieldCondition,
+        MatchValue,
+        ScoredPoint,
+    )
+
+    QDRANT_MODELS_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency
+    PointStruct = VectorParams = Distance = Filter = None
+    FieldCondition = MatchValue = ScoredPoint = None
+    QDRANT_MODELS_AVAILABLE = False
 
 
 COLLECTION_NAME = "graph_node_embeddings"
@@ -37,12 +59,23 @@ class GraphEmbeddings:
         }
         return model_map.get(self.model_name, EMBEDDING_DIMENSION)
 
+    @property
+    def available(self) -> bool:
+        return (
+            qdrant_client is not None
+            and QDRANT_MODELS_AVAILABLE
+            and SENTENCE_TRANSFORMERS_AVAILABLE
+        )
+
     async def _load_model(self):
         if self._loaded:
             return
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            logger.warning("embedding_model_unavailable", model=self.model_name)
+            return
         self.model = SentenceTransformer(self.model_name)
         self._loaded = True
-        logger.info("Embedding model loaded", model=self.model_name)
+        logger.info("embedding_model_loaded", model=self.model_name)
 
     async def _ensure_collection(self):
         try:

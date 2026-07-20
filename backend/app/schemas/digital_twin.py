@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -71,12 +71,11 @@ class AssetResponse(BaseModel):
     department: Optional[str] = None
     owner: Optional[str] = None
     tags: List[str] = []
-    metadata: Dict[str, Any] = {}
+    metadata: Dict[str, Any] = Field(default_factory=dict, validation_alias="metadata_")
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class RelationshipType(str, Enum):
@@ -104,11 +103,10 @@ class RelationshipResponse(BaseModel):
     target_asset_id: str
     relationship_type: RelationshipType
     label: Optional[str] = None
-    metadata: Dict[str, Any] = {}
+    metadata: Dict[str, Any] = Field(default_factory=dict, validation_alias="metadata_")
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class DigitalTwinState(BaseModel):

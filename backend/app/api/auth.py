@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from pydantic import BaseModel, Field
 from typing import Optional
 from app.core.database import get_db
@@ -27,6 +27,14 @@ class UserCreate(BaseModel):
     email: str = Field(..., max_length=255)
     password: str = Field(..., min_length=8)
     full_name: Optional[str] = None
+    roles: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Requested roles. Privileged roles (approver, soc_lead, ciso, admin) "
+            "are only granted to the bootstrap account; otherwise they are "
+            "dropped and the account defaults to 'analyst'."
+        ),
+    )
 
 
 class UserResponse(BaseModel):
@@ -82,11 +90,41 @@ async def register(request: UserCreate, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail="Username or email already exists",
         )
+    # `roles` used to be accepted and silently dropped, so every account was
+    # created with no roles and nobody could ever satisfy the approval gate.
+    # Roles are now persisted, but privileged ones cannot be self-assigned
+    # through open registration - otherwise anyone could mint themselves an
+    # approver and walk straight through the human-in-the-loop control.
+    requested = {str(r).lower() for r in (request.roles or [])}
+    privileged = {"approver", "soc_lead", "ciso", "admin"}
+
+    total_users = await db.execute(select(func.count(User.id)))
+    is_first_account = (total_users.scalar() or 0) == 0
+
+    if is_first_account:
+        granted = sorted(requested) or ["admin"]
+        logger.warning(
+            "bootstrap_account_created",
+            username=request.username,
+            roles=granted,
+            note="first account may self-assign roles; disable open registration in production",
+        )
+    else:
+        denied = requested & privileged
+        granted = sorted(requested - privileged) or ["analyst"]
+        if denied:
+            logger.warning(
+                "privileged_role_self_assignment_denied",
+                username=request.username,
+                denied=sorted(denied),
+            )
+
     user = User(
         username=request.username,
         email=request.email,
         hashed_password=get_password_hash(request.password),
         full_name=request.full_name,
+        roles=granted,
     )
     db.add(user)
     await db.commit()

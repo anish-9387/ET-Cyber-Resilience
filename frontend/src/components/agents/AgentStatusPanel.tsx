@@ -2,208 +2,287 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { api, Agent, ApiError } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
-import { Bot, Activity, CheckCircle, XCircle, ToggleLeft, ToggleRight, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  EmptyState,
+  ErrorState,
+  InlineError,
+  LoadingState,
+} from '@/components/ui/States';
+import {
+  Bot,
+  ToggleLeft,
+  ToggleRight,
+  ChevronDown,
+  ChevronUp,
+  Play,
+  Clock,
+} from 'lucide-react';
 
-interface Agent {
-  id: string;
-  name: string;
-  type: string;
-  status: 'active' | 'idle' | 'error';
-  lastRun: string;
-  metrics: { runs: number; successes: number; failures: number };
-  enabled: boolean;
-  recentLog: { time: string; message: string; level: 'info' | 'warn' | 'error' }[];
+function statusVariant(status: Agent['status']) {
+  if (status === 'running') return 'success' as const;
+  if (status === 'error') return 'danger' as const;
+  if (status === 'disabled') return 'default' as const;
+  return 'info' as const;
 }
 
-const mockAgents: Agent[] = [
-  {
-    id: 'cryptoguard',
-    name: 'CryptoGuard',
-    type: 'Detection',
-    status: 'active',
-    lastRun: '30s ago',
-    metrics: { runs: 1247, successes: 1198, failures: 49 },
-    enabled: true,
-    recentLog: [
-      { time: '30s ago', message: 'Scan complete — no ransomware patterns', level: 'info' },
-      { time: '2m ago', message: 'Monitoring file system events on DC-01', level: 'info' },
-      { time: '5m ago', message: 'Suspicious batch rename detected (FP dismissed)', level: 'warn' },
-    ],
-  },
-  {
-    id: 'sentinel',
-    name: 'Sentinel',
-    type: 'EDR',
-    status: 'active',
-    lastRun: '15s ago',
-    metrics: { runs: 3421, successes: 3356, failures: 65 },
-    enabled: true,
-    recentLog: [
-      { time: '15s ago', message: 'Process tree analysis complete', level: 'info' },
-      { time: '1m ago', message: 'LSASS access alert — credential dumping detected', level: 'error' },
-    ],
-  },
-  {
-    id: 'netwatch',
-    name: 'NetWatch',
-    type: 'Network',
-    status: 'idle',
-    lastRun: '3m ago',
-    metrics: { runs: 892, successes: 874, failures: 18 },
-    enabled: true,
-    recentLog: [
-      { time: '3m ago', message: 'Traffic analysis complete — no anomalies', level: 'info' },
-    ],
-  },
-  {
-    id: 'threatpredictor',
-    name: 'ThreatPredictor',
-    type: 'AI/ML',
-    status: 'active',
-    lastRun: '10s ago',
-    metrics: { runs: 567, successes: 543, failures: 24 },
-    enabled: true,
-    recentLog: [
-      { time: '10s ago', message: 'Prediction: Lateral movement to SQL-01 (87%)', level: 'info' },
-      { time: '2m ago', message: 'Model updated — new IoC patterns loaded', level: 'info' },
-    ],
-  },
-  {
-    id: 'responder',
-    name: 'AutoResponder',
-    type: 'Response',
-    status: 'error',
-    lastRun: '12m ago',
-    metrics: { runs: 234, successes: 210, failures: 24 },
-    enabled: false,
-    recentLog: [
-      { time: '12m ago', message: 'Playbook execution failed — API timeout', level: 'error' },
-      { time: '15m ago', message: 'Isolation action triggered on WS-12', level: 'info' },
-    ],
-  },
-];
+function indicatorStatus(status: Agent['status']) {
+  if (status === 'running') return 'active' as const;
+  if (status === 'error') return 'error' as const;
+  return 'idle' as const;
+}
 
+function heartbeatLabel(iso: string | null): string {
+  if (!iso) return 'never';
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (Number.isNaN(seconds)) return iso;
+  if (seconds < 60) return `${Math.max(seconds, 0)}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+/**
+ * Live agent registry from GET /agents.
+ *
+ * The backend exposes no per-agent run/success/failure counters, so none are
+ * shown — the previous version displayed invented totals and success rates.
+ */
 export function AgentStatusPanel() {
-  const [agents, setAgents] = useState(mockAgents);
+  const state = useApi(() => api.getAgents(), [], 5000);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<ApiError | null>(null);
+  const [results, setResults] = useState<Record<string, string>>({});
 
-  const toggleAgent = (id: string) => {
-    setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, enabled: !a.enabled } : a)));
+  const agents = state.data ?? [];
+
+  const toggleEnabled = async (agent: Agent) => {
+    setBusy(agent.id);
+    setActionError(null);
+    try {
+      await api.updateAgent(agent.id, {
+        status: agent.status === 'disabled' ? 'idle' : 'disabled',
+      });
+      state.refetch();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err : new ApiError('Update failed', 0, '/agents')
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runAgent = async (agent: Agent) => {
+    setBusy(agent.id);
+    setActionError(null);
+    try {
+      const result = await api.runAgentAction(agent.id, 'run');
+      setResults((prev) => ({
+        ...prev,
+        [agent.id]:
+          result.status === 'failed'
+            ? `failed: ${result.error ?? 'unknown error'}`
+            : `${result.status}${
+                result.execution_time_ms !== null
+                  ? ` in ${result.execution_time_ms}ms`
+                  : ''
+              }`,
+      }));
+      state.refetch();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err
+          : new ApiError('Action failed', 0, '/agents/action')
+      );
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">AI Agents</h3>
-        <div className="flex items-center gap-2">
-          <StatusIndicator status="active" size="sm" />
-          <span className="text-[10px] text-gray-500">{agents.filter((a) => a.status === 'active').length} active</span>
+        {agents.length > 0 && (
+          <div className="flex items-center gap-2">
+            <StatusIndicator status="active" size="sm" showLabel={false} />
+            <span className="text-[10px] text-gray-500">
+              {agents.filter((a) => a.status === 'running').length} running ·{' '}
+              {agents.length} registered
+            </span>
+          </div>
+        )}
+      </div>
+
+      {actionError && <InlineError error={actionError} />}
+
+      {state.initialLoading && <LoadingState label="Loading agents…" />}
+      {!state.initialLoading && state.error && (
+        <div className="bg-surface-card border border-surface-border rounded-xl">
+          <ErrorState error={state.error} onRetry={state.refetch} />
         </div>
-      </div>
+      )}
+      {!state.initialLoading && !state.error && agents.length === 0 && (
+        <div className="bg-surface-card border border-surface-border rounded-xl">
+          <EmptyState
+            title="No agents registered"
+            message="Register an agent via POST /agents/register and it will appear here."
+            icon={<Bot className="h-6 w-6" />}
+          />
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {agents.map((agent) => (
-          <Card
-            key={agent.id}
-            className={cn(
-              'transition-all duration-200',
-              !agent.enabled && 'opacity-60',
-              agent.status === 'active' && 'border-accent-green/20',
-              agent.status === 'error' && 'border-accent-red/30'
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <div className={cn(
-                'p-2 rounded-lg shrink-0',
-                agent.status === 'active' ? 'bg-accent-green/10 text-accent-green' :
-                agent.status === 'error' ? 'bg-accent-red/10 text-accent-red' :
-                'bg-gray-500/10 text-gray-400'
-              )}>
-                <Bot className="h-5 w-5" />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold text-white">{agent.name}</h4>
-                  <Badge variant={
-                    agent.status === 'active' ? 'success' :
-                    agent.status === 'error' ? 'danger' : 'default'
-                  } size="sm">
-                    {agent.status}
-                  </Badge>
-                </div>
-                <p className="text-[10px] text-gray-500 mt-0.5">{agent.type} · Last run: {agent.lastRun}</p>
-
-                {/* Metrics */}
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-1">
-                    <Activity className="h-3 w-3 text-accent-cyan" />
-                    <span className="text-[10px] text-gray-400 font-mono">{agent.metrics.runs}</span>
+      {agents.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {agents.map((agent) => {
+            const disabled = agent.status === 'disabled';
+            return (
+              <Card
+                key={agent.id}
+                className={cn(
+                  'transition-all duration-200',
+                  disabled && 'opacity-60',
+                  agent.status === 'running' && 'border-accent-green/20',
+                  agent.status === 'error' && 'border-accent-red/30'
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      'p-2 rounded-lg shrink-0',
+                      agent.status === 'running'
+                        ? 'bg-accent-green/10 text-accent-green'
+                        : agent.status === 'error'
+                          ? 'bg-accent-red/10 text-accent-red'
+                          : 'bg-gray-500/10 text-gray-400'
+                    )}
+                  >
+                    <Bot className="h-5 w-5" />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-accent-green" />
-                    <span className="text-[10px] text-gray-400 font-mono">{agent.metrics.successes}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <XCircle className="h-3 w-3 text-accent-red" />
-                    <span className="text-[10px] text-gray-400 font-mono">{agent.metrics.failures}</span>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="text-[10px] text-gray-600 font-mono">
-                      {((agent.metrics.successes / agent.metrics.runs) * 100).toFixed(1)}% success
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              <div className="flex flex-col items-center gap-1">
-                <button
-                  onClick={() => toggleAgent(agent.id)}
-                  className={cn(
-                    'p-1 rounded transition-colors',
-                    agent.enabled ? 'text-accent-green hover:text-accent-green/80' : 'text-gray-600 hover:text-gray-400'
-                  )}
-                >
-                  {agent.enabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
-                </button>
-                <button
-                  onClick={() => setExpanded(expanded === agent.id ? null : agent.id)}
-                  className="p-1 text-gray-500 hover:text-white transition-colors"
-                >
-                  {expanded === agent.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Expanded log */}
-            {expanded === agent.id && (
-              <div className="mt-3 pt-3 border-t border-surface-border">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Recent Activity</p>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {agent.recentLog.map((log, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-[10px]">
-                      <span className={cn(
-                        'w-1 h-1 rounded-full mt-1.5 shrink-0',
-                        log.level === 'error' ? 'bg-accent-red' :
-                        log.level === 'warn' ? 'bg-accent-yellow' : 'bg-accent-cyan'
-                      )} />
-                      <span className="text-gray-600 font-mono shrink-0">{log.time}</span>
-                      <span className={cn(
-                        'font-mono',
-                        log.level === 'error' ? 'text-accent-red' :
-                        log.level === 'warn' ? 'text-accent-yellow' : 'text-gray-300'
-                      )}>{log.message}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-semibold text-white truncate">
+                        {agent.name}
+                      </h4>
+                      <Badge variant={statusVariant(agent.status)} size="sm">
+                        {agent.status}
+                      </Badge>
                     </div>
-                  ))}
+                    <p className="text-[10px] text-gray-500 mt-0.5">
+                      {agent.agent_type.replace(/_/g, ' ')}
+                    </p>
+                    <p className="flex items-center gap-1 text-[10px] text-gray-600 mt-1 font-mono">
+                      <Clock className="h-2.5 w-2.5" />
+                      heartbeat {heartbeatLabel(agent.last_heartbeat)}
+                    </p>
+                    {results[agent.id] && (
+                      <p className="text-[10px] text-accent-cyan font-mono mt-1">
+                        {results[agent.id]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => toggleEnabled(agent)}
+                      disabled={busy === agent.id}
+                      title={disabled ? 'Enable agent' : 'Disable agent'}
+                      className={cn(
+                        'p-1 rounded transition-colors disabled:opacity-50',
+                        !disabled
+                          ? 'text-accent-green hover:text-accent-green/80'
+                          : 'text-gray-600 hover:text-gray-400'
+                      )}
+                    >
+                      {!disabled ? (
+                        <ToggleRight className="h-5 w-5" />
+                      ) : (
+                        <ToggleLeft className="h-5 w-5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() =>
+                        setExpanded(expanded === agent.id ? null : agent.id)
+                      }
+                      className="p-1 text-gray-500 hover:text-white transition-colors"
+                    >
+                      {expanded === agent.id ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </Card>
-        ))}
-      </div>
+
+                {expanded === agent.id && (
+                  <div className="mt-3 pt-3 border-t border-surface-border space-y-3">
+                    {agent.description && (
+                      <p className="text-[11px] text-gray-400">{agent.description}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="px-2.5 py-1.5 rounded bg-surface/60">
+                        <p className="text-[9px] text-gray-500 uppercase tracking-wider">
+                          Registered
+                        </p>
+                        <p className="text-[10px] text-gray-300 font-mono">
+                          {new Date(agent.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="px-2.5 py-1.5 rounded bg-surface/60">
+                        <p className="text-[9px] text-gray-500 uppercase tracking-wider">
+                          Updated
+                        </p>
+                        <p className="text-[10px] text-gray-300 font-mono">
+                          {new Date(agent.updated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    {agent.tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {agent.tags.map((tag) => (
+                          <Badge key={tag} variant="default" size="sm">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    {Object.keys(agent.config ?? {}).length > 0 && (
+                      <div>
+                        <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">
+                          Config
+                        </p>
+                        <pre className="text-[10px] text-gray-400 font-mono bg-surface/60 rounded p-2 overflow-x-auto">
+                          {JSON.stringify(agent.config, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={busy === agent.id}
+                      onClick={() => runAgent(agent)}
+                      icon={<Play className="h-3.5 w-3.5" />}
+                      className="w-full"
+                    >
+                      Dispatch run action
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

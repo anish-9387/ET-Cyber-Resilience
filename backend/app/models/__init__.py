@@ -1,10 +1,31 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Text, Float, Boolean, DateTime, JSON, Integer, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
-from sqlalchemy.orm import relationship
+from sqlalchemy.types import TypeDecorator
 from app.core.database import Base
 import enum
+
+
+class StringList(TypeDecorator):
+    """Portable list-of-strings column.
+
+    The original schema used ``postgresql.StringList``, which made the whole
+    application undeployable anywhere except Postgres. A JSON-backed decorator
+    behaves identically for our access patterns and works on SQLite too.
+    """
+
+    impl = JSON
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return []
+        return [str(v) for v in value]
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return []
+        return list(value)
 
 
 def generate_uuid():
@@ -43,7 +64,7 @@ class Agent(Base):
     description = Column(Text, nullable=True)
     api_key = Column(String(256), nullable=True)
     config = Column(JSON, default=dict)
-    tags = Column(ARRAY(String), default=list)
+    tags = Column(StringList, default=list)
     last_heartbeat = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
@@ -98,11 +119,11 @@ class Incident(Base):
     severity = Column(SAEnum(IncidentSeverity), default=IncidentSeverity.MEDIUM, nullable=False)
     priority = Column(SAEnum(IncidentPriority), default=IncidentPriority.P2, nullable=False)
     source = Column(String(200), nullable=True)
-    affected_assets = Column(ARRAY(String), default=list)
-    mitre_techniques = Column(ARRAY(String), default=list)
-    indicators = Column(ARRAY(String), default=list)
+    affected_assets = Column(StringList, default=list)
+    mitre_techniques = Column(StringList, default=list)
+    indicators = Column(StringList, default=list)
     assigned_to = Column(String(100), nullable=True, index=True)
-    tags = Column(ARRAY(String), default=list)
+    tags = Column(StringList, default=list)
     resolution_notes = Column(Text, nullable=True)
     created_by = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
@@ -159,7 +180,7 @@ class Asset(Base):
     location = Column(String(200), nullable=True)
     department = Column(String(200), nullable=True, index=True)
     owner = Column(String(100), nullable=True)
-    tags = Column(ARRAY(String), default=list)
+    tags = Column(StringList, default=list)
     metadata_ = Column("metadata", JSON, default=dict)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
@@ -219,7 +240,7 @@ class Event(Base):
     description = Column(Text, nullable=True)
     raw_data = Column(JSON, nullable=True)
     metadata_ = Column("metadata", JSON, default=dict)
-    tags = Column(ARRAY(String), default=list)
+    tags = Column(StringList, default=list)
     correlation_id = Column(String(100), nullable=True, index=True)
     processed = Column(Boolean, default=False)
     timestamp = Column(DateTime(timezone=True), default=utcnow, nullable=False)
@@ -234,7 +255,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(256), nullable=False)
     full_name = Column(String(200), nullable=True)
-    roles = Column(ARRAY(String), default=list)
+    roles = Column(StringList, default=list)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)

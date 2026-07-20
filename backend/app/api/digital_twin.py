@@ -214,32 +214,100 @@ async def get_asset_state(asset_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/simulate", response_model=SimulationResult)
 async def run_simulation(request: DigitalTwinSimulation):
-    import uuid
-    sim_id = str(uuid.uuid4())
-    logger.info("Simulation started", sim_id=sim_id, scenario=request.scenario, asset_id=request.asset_id)
+    """Simulate compromise of an asset against the live world model.
+
+    This used to echo the request parameters back and derive `risk_score` from a
+    three-term constant sum, which meant the result was a function of the inputs
+    rather than of the modelled environment. It now delegates to the world model:
+    the asset is hypothetically compromised in a deep copy, the attack forecast
+    and mission impact are recomputed, and the delta is reported. Nothing here
+    touches production - the clone is discarded when the request completes.
+    """
+    from app.world_model import Observation, world_model
+    from app.world_model.mission_impact import compute_mission_impact
+
+    entity = world_model.resolve(request.asset_id) if hasattr(world_model, "resolve") \
+        else world_model.get_entity(request.asset_id)
+    if entity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"Asset '{request.asset_id}' is not present in the world model. "
+                "Seed the topology or ingest telemetry for it first."
+            ),
+        )
+
     start = datetime.now(timezone.utc)
+    sim_id = f"sim-{world_model.snapshot_id()}-{entity.id}"
+
+    baseline_mission = compute_mission_impact(world_model)
+    baseline_forecast = world_model.forecast(horizon_minutes=60)
+
+    clone = world_model.clone()
+    await clone.ingest_observation(
+        Observation(
+            entity_id=entity.id,
+            source="digital_twin_simulation",
+            description=(
+                f"Hypothetical compromise of {entity.name} under scenario "
+                f"'{request.scenario}'"
+            ),
+            technique_id=request.parameters.get("technique_id"),
+            likelihood_ratio=50.0,
+            severity="critical",
+            timestamp=start,
+            raw={"simulated": True, "scenario": request.scenario, **request.parameters},
+        )
+    )
+    projected_mission = compute_mission_impact(clone)
+    projected_forecast = clone.forecast(horizon_minutes=60)
+
+    blast = list({n["id"]: n for n in clone.neighbors(entity.id)}.values())
+    baseline_risk = float(baseline_mission.get("overall_mission_risk", 0.0))
+    projected_risk = float(projected_mission.get("overall_mission_risk", 0.0))
+
     impact_analysis = {
         "scenario": request.scenario,
-        "parameters": request.parameters,
-        "estimated_cpu_impact": request.parameters.get("load", 50),
-        "estimated_memory_impact": request.parameters.get("memory", 30),
-        "affected_services": request.parameters.get("services", []),
-        "blast_radius": request.parameters.get("blast_radius", "local"),
+        "entity": {"id": entity.id, "name": entity.name, "criticality": entity.criticality},
+        "baseline_mission_risk": round(baseline_risk, 6),
+        "projected_mission_risk": round(projected_risk, 6),
+        "mission_risk_delta": round(projected_risk - baseline_risk, 6),
+        "degraded_functions": projected_mission.get("degraded_functions", []),
+        "population_affected": projected_mission.get("population_affected"),
+        "highest_safety_risk": projected_mission.get("highest_safety_risk"),
+        "blast_radius_entities": [n["id"] for n in blast],
+        "blast_radius_count": len(blast),
+        "baseline_attack_success": baseline_forecast.get("attack_success"),
+        "projected_attack_success": projected_forecast.get("attack_success"),
+        "mode": "counterfactual_on_world_model_clone",
+        "production_touched": False,
     }
-    risk_score = min(100, sum([
-        30 if request.parameters.get("critical", False) else 10,
-        len(request.parameters.get("services", [])) * 5,
-        20 if request.parameters.get("blast_radius", "local") == "network" else 10,
-    ]))
+
+    risk_score = round(min(100.0, projected_risk * 100.0), 2)
+
     recommendations = [
-        f"Review access controls for assets similar to {request.asset_id}",
-        "Ensure backup systems are operational",
-        "Verify monitoring coverage for this scenario",
-        "Update incident response playbook if gaps identified",
+        f"Isolate {entity.name} - it neighbours {len(blast)} modelled entities"
     ]
-    result = SimulationResult(
+    for fn in projected_mission.get("degraded_functions", [])[:3]:
+        name = fn.get("name") if isinstance(fn, dict) else str(fn)
+        recommendations.append(f"Prepare continuity plan for mission function '{name}'")
+    if not projected_mission.get("degraded_functions"):
+        recommendations.append(
+            "No modelled mission function degrades from this asset alone - "
+            "treat as containment priority rather than continuity risk"
+        )
+
+    logger.info(
+        "simulation_completed",
+        sim_id=sim_id,
+        entity=entity.id,
+        risk_score=risk_score,
+        mission_delta=impact_analysis["mission_risk_delta"],
+    )
+
+    return SimulationResult(
         simulation_id=sim_id,
-        asset_id=request.asset_id,
+        asset_id=entity.id,
         scenario=request.scenario,
         status="completed",
         impact_analysis=impact_analysis,
@@ -248,5 +316,3 @@ async def run_simulation(request: DigitalTwinSimulation):
         started_at=start,
         completed_at=datetime.now(timezone.utc),
     )
-    logger.info("Simulation completed", sim_id=sim_id, risk_score=risk_score)
-    return result

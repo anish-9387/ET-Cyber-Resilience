@@ -2,50 +2,55 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { api, Severity } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import { SeverityBadge } from '@/components/ui/SeverityBadge';
-import { Button } from '@/components/ui/Button';
-import { CheckCircle, XCircle, Bell, Filter } from 'lucide-react';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { Bell, Filter } from 'lucide-react';
 
-interface Alert {
-  id: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  title: string;
-  description: string;
-  timestamp: string;
-  mitre: string;
-  acknowledged: boolean;
-  resolved: boolean;
+const severityOrder: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  info: 4,
+};
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return iso;
+  const seconds = Math.floor((Date.now() - then) / 1000);
+  if (seconds < 60) return `${Math.max(seconds, 0)}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-const mockAlerts: Alert[] = [
-  { id: 'A-1024', severity: 'critical', title: 'Ransomware Encryption Pattern Detected', description: 'File batch rename and extension change pattern on DC-01 matching known ransomware behavior', timestamp: '2 min ago', mitre: 'T1486', acknowledged: false, resolved: false },
-  { id: 'A-1023', severity: 'high', title: 'Lateral Movement via WMI', description: 'WMI execution from WS-12 to SQL-01 with suspicious payload', timestamp: '7 min ago', mitre: 'T1047', acknowledged: false, resolved: false },
-  { id: 'A-1022', severity: 'high', title: 'Credential Dumping - LSASS Access', description: 'LSASS process memory opened by non-system process on DC-01', timestamp: '15 min ago', mitre: 'T1003.001', acknowledged: true, resolved: false },
-  { id: 'A-1021', severity: 'medium', title: 'Suspicious PowerShell - Encoded Command', description: 'PowerShell executed with -EncodedCommand flag on WS-08', timestamp: '22 min ago', mitre: 'T1059.001', acknowledged: false, resolved: false },
-  { id: 'A-1020', severity: 'medium', title: 'Unauthorized Service Installation', description: 'New service Svchost++ installed on WEB-02 by non-admin process', timestamp: '35 min ago', mitre: 'T1543.003', acknowledged: false, resolved: false },
-  { id: 'A-1019', severity: 'low', title: 'External Port Scan', description: 'Repeated connection attempts on ports 22,445,3389 from 185.220.101.x', timestamp: '47 min ago', mitre: 'T1046', acknowledged: true, resolved: true },
-];
-
-const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-
+/**
+ * Live security events from /threat-intel/indicators.
+ *
+ * There is no alert acknowledge/resolve endpoint in the API, so this panel is
+ * read-only — the previous version had accept/resolve buttons that only mutated
+ * local state and gave the false impression of a persisted workflow.
+ */
 export function AlertsPanel() {
-  const [alerts, setAlerts] = useState(mockAlerts);
   const [filter, setFilter] = useState<string>('all');
+  const state = useApi(
+    () => api.getIndicators({ page_size: 50 }),
+    [],
+    5000
+  );
 
-  const filtered = alerts
-    .filter((a) => filter === 'all' || a.severity === filter)
-    .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  const events = state.data ?? [];
+  const filtered = events
+    .filter((e) => filter === 'all' || e.severity === filter)
+    .sort(
+      (a, b) =>
+        (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9) ||
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
 
-  const handleAcknowledge = (id: string) => {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, acknowledged: true } : a)));
-  };
-
-  const handleResolve = (id: string) => {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, resolved: true, acknowledged: true } : a)));
-  };
-
-  const activeCount = alerts.filter((a) => !a.resolved).length;
-  const criticalCount = alerts.filter((a) => a.severity === 'critical' && !a.resolved).length;
+  const criticalCount = events.filter((e) => e.severity === 'critical').length;
 
   return (
     <div className="bg-surface-card border border-surface-border rounded-xl overflow-hidden">
@@ -59,17 +64,20 @@ export function AlertsPanel() {
               )}
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Active Alerts</h3>
-              <p className="text-[10px] text-gray-500 font-mono">{activeCount} unresolved</p>
+              <h3 className="text-sm font-semibold text-white">Security Events</h3>
+              <p className="text-[10px] text-gray-500 font-mono">
+                {state.initialLoading ? 'loading…' : `${events.length} in feed`}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-            <span className="text-[10px] text-gray-500">Live</span>
-          </div>
+          {!state.error && (
+            <div className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+              <span className="text-[10px] text-gray-500">Live</span>
+            </div>
+          )}
         </div>
 
-        {/* Filter */}
         <div className="flex items-center gap-1.5">
           <Filter className="h-3 w-3 text-gray-500" />
           {['all', 'critical', 'high', 'medium', 'low'].map((f) => (
@@ -90,59 +98,60 @@ export function AlertsPanel() {
       </div>
 
       <div className="divide-y divide-surface-border max-h-[480px] overflow-y-auto">
-        {filtered.map((alert) => (
-          <div
-            key={alert.id}
-            className={cn(
-              'px-5 py-3 transition-colors duration-150',
-              !alert.acknowledged && alert.severity === 'critical' && 'bg-accent-red/5',
-              !alert.acknowledged && alert.severity === 'high' && 'bg-accent-orange/[0.02]',
-              alert.resolved && 'opacity-60'
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <SeverityBadge severity={alert.severity} />
-                  <span className="text-[10px] text-gray-500 font-mono">{alert.id}</span>
-                  <span className="text-[10px] text-gray-600 bg-surface-border/50 px-1.5 py-0.5 rounded font-mono">
-                    {alert.mitre}
-                  </span>
-                  {!alert.acknowledged && <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />}
-                </div>
-                <h4 className="text-sm font-medium text-white">{alert.title}</h4>
-                <p className="text-xs text-gray-400 mt-0.5">{alert.description}</p>
-                <p className="text-[10px] text-gray-600 mt-1">{alert.timestamp}</p>
-              </div>
+        {state.initialLoading && <LoadingState label="Loading events…" />}
 
-              <div className="flex items-center gap-1 shrink-0">
-                {!alert.acknowledged && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleAcknowledge(alert.id)}
-                    className="text-accent-cyan hover:text-white"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                {!alert.resolved && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleResolve(alert.id)}
-                    className="text-accent-green hover:text-white"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+        {!state.initialLoading && state.error && (
+          <ErrorState error={state.error} onRetry={state.refetch} />
+        )}
+
+        {!state.initialLoading && !state.error && events.length === 0 && (
+          <EmptyState
+            title="No security events"
+            message="Nothing has been ingested yet. Run a scenario or POST telemetry to /ingest/event to populate this feed."
+          />
+        )}
+
+        {!state.initialLoading &&
+          !state.error &&
+          events.length > 0 &&
+          filtered.length === 0 && (
+            <div className="px-5 py-8 text-center text-sm text-gray-500">
+              No events match the current filter
+            </div>
+          )}
+
+        {filtered.map((event) => {
+          const technique = event.tags?.find((t) => /^T\d{4}/.test(t));
+          return (
+            <div
+              key={event.id}
+              className={cn(
+                'px-5 py-3 transition-colors duration-150',
+                event.severity === 'critical' && 'bg-accent-red/5'
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <SeverityBadge severity={event.severity as Severity} />
+                  <span className="text-[10px] text-gray-500 font-mono">
+                    {event.id.slice(0, 8)}
+                  </span>
+                  {technique && (
+                    <span className="text-[10px] text-gray-600 bg-surface-border/50 px-1.5 py-0.5 rounded font-mono">
+                      {technique}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-gray-600">{event.source}</span>
+                </div>
+                <h4 className="text-sm font-medium text-white">{event.title}</h4>
+                <p className="text-xs text-gray-400 mt-0.5">{event.description}</p>
+                <p className="text-[10px] text-gray-600 mt-1">
+                  {relativeTime(event.timestamp)}
+                </p>
               </div>
             </div>
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="px-5 py-8 text-center text-sm text-gray-500">No alerts match the current filter</div>
-        )}
+          );
+        })}
       </div>
     </div>
   );

@@ -13,6 +13,47 @@ from app.core.config import settings
 import json, hashlib
 
 
+class PlaybookExecutor:
+    """Interface between a containment playbook and a real enforcement point.
+
+    Implement `run` against a firewall, directory service, EDR or hypervisor API
+    and register it with `AutonomousResponseAgent.set_executor()`. `mode` and
+    `integration` are surfaced verbatim in API responses, the audit trail and the
+    automation-coverage metric, so they must describe what actually happened.
+    """
+
+    mode = "unknown"
+    integration = "unknown"
+
+    async def run(self, action: str, command: str, step_order: int) -> Dict[str, Any]:
+        raise NotImplementedError
+
+
+class SimulatedExecutor(PlaybookExecutor):
+    """Default executor: renders the command and records it without running it.
+
+    This is what ships. It exists so playbook logic, approval gating and
+    rollback can be exercised end to end without a live enforcement point, and
+    it deliberately reports `simulated` rather than `executed` so nothing
+    downstream can present a dry run as containment.
+    """
+
+    mode = "simulated"
+    integration = "none"
+
+    async def run(self, action: str, command: str, step_order: int) -> Dict[str, Any]:
+        return {
+            "step": step_order,
+            "action": action,
+            "command": command,
+            "status": "simulated",
+            "mode": self.mode,
+            "integration": self.integration,
+            "enforced": False,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
 class ExecutionStatus(Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -64,6 +105,7 @@ class AutonomousResponseAgent(BaseAgent):
         )
         self.active_actions: Dict[str, ResponseAction] = {}
         self.action_history: List[Dict[str, Any]] = []
+        self.executor: PlaybookExecutor = SimulatedExecutor()
         self.ot_critical_assets: List[str] = []
         self.approval_timeout_minutes: int = 5
 
@@ -217,39 +259,60 @@ class AutonomousResponseAgent(BaseAgent):
 
         return {"success": True, "action": response.to_dict()}
 
+    def set_executor(self, executor: PlaybookExecutor) -> None:
+        self.executor = executor
+        logger.info(
+            "response_executor_configured",
+            mode=executor.mode,
+            integration=executor.integration,
+        )
+
+    def _render_command(self, response: ResponseAction, template: str) -> str:
+        return template.format(**response.params, **{
+            "ip": response.params.get("ip", response.target),
+            "user": response.params.get("user", response.target),
+            "hostname": response.params.get("hostname", response.target),
+            "pid": response.params.get("pid", response.target),
+            "vm_id": response.params.get("vm_id", response.target),
+            "host_id": response.params.get("host_id", response.target),
+            "credential_id": response.params.get("credential_id", response.target),
+            "segment_id": response.params.get("segment_id", response.target),
+            "alert_id": response.params.get("alert_id", response.target),
+            "timestamp": datetime.utcnow().strftime("%Y%m%d%H%M%S"),
+        })
+
     async def _execute_playbook(self, response: ResponseAction, playbook: Playbook) -> Dict[str, Any]:
+        """Run a containment playbook through the configured executor.
+
+        No enforcement-point integration ships with this build: `self.executor`
+        is the simulated executor, which renders each command and records what
+        *would* run without touching a firewall, directory or hypervisor. Every
+        step result is therefore tagged `mode="simulated"` and
+        `integration="none"` so downstream consumers, the audit trail and the
+        automation-coverage metric cannot mistake a dry run for containment.
+        Supplying a real executor via `set_executor()` is the extension point.
+        """
         try:
             for step in playbook.steps:
-                command = step.command.format(**response.params, **{
-                    "ip": response.params.get("ip", response.target),
-                    "user": response.params.get("user", response.target),
-                    "hostname": response.params.get("hostname", response.target),
-                    "pid": response.params.get("pid", response.target),
-                    "vm_id": response.params.get("vm_id", response.target),
-                    "host_id": response.params.get("host_id", response.target),
-                    "credential_id": response.params.get("credential_id", response.target),
-                    "segment_id": response.params.get("segment_id", response.target),
-                    "alert_id": response.params.get("alert_id", response.target),
-                    "timestamp": datetime.utcnow().strftime("%Y%m%d%H%M%S"),
-                })
-
-                step_result = {
-                    "step": step.order,
-                    "action": step.action,
-                    "command": command,
-                    "status": "executed",
-                    "timestamp": datetime.utcnow().isoformat(),
-                }
+                command = self._render_command(response, step.command)
+                step_result = await self.executor.run(
+                    action=step.action, command=command, step_order=step.order
+                )
                 response.steps_executed.append(step_result)
 
                 if step.requires_rollback:
                     response.params[f"_rollback_{step.action}"] = step.rollback_command
 
-            return {"success": True, "steps": len(playbook.steps)}
+            return {
+                "success": True,
+                "steps": len(playbook.steps),
+                "execution_mode": self.executor.mode,
+                "integration": self.executor.integration,
+            }
 
         except Exception as e:
-            logger.error(f"Playbook execution failed", playbook=playbook.name, error=str(e))
-            return {"success": False, "error": str(e)}
+            logger.error("playbook_execution_failed", playbook=playbook.name, error=str(e))
+            return {"success": False, "error": str(e), "execution_mode": self.executor.mode}
 
     async def _rollback_action(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         action_id = input_data.get("action_id")
@@ -262,11 +325,13 @@ class AutonomousResponseAgent(BaseAgent):
         for step in reversed(response.steps_executed):
             rollback_cmd = response.params.get(f"_rollback_{step['action']}")
             if rollback_cmd:
-                rollback_results.append({
-                    "step": step["step"],
-                    "rollback_command": rollback_cmd,
-                    "status": "executed",
-                })
+                rendered = self._render_command(response, rollback_cmd)
+                result = await self.executor.run(
+                    action=f"rollback_{step['action']}",
+                    command=rendered,
+                    step_order=step["step"],
+                )
+                rollback_results.append(result)
 
         response.status = ExecutionStatus.ROLLED_BACK
         response.error = "Rolled back"

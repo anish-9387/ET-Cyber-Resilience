@@ -5,7 +5,72 @@ from app.agents.base_agent import BaseAgent
 from app.core.logger import logger
 from app.core.database import neo4j_driver, qdrant_client
 from app.core.llm import llm_manager
+from app.core.config import settings
 import json, hashlib, numpy as np
+
+EMBEDDING_DIM = 384
+_EMBEDDER = None
+_EMBEDDER_LOADED = False
+
+
+def _load_embedder():
+    """Lazily load sentence-transformers once per process; None if unavailable."""
+    global _EMBEDDER, _EMBEDDER_LOADED
+    if _EMBEDDER_LOADED:
+        return _EMBEDDER
+    _EMBEDDER_LOADED = True
+    try:
+        from sentence_transformers import SentenceTransformer
+        _EMBEDDER = SentenceTransformer(settings.EMBEDDING_MODEL)
+        logger.info("Loaded sentence-transformers embedder", model=settings.EMBEDDING_MODEL)
+    except Exception as e:
+        _EMBEDDER = None
+        logger.warning(
+            "sentence-transformers unavailable, using hashing fallback",
+            model=settings.EMBEDDING_MODEL,
+            error=str(e),
+        )
+    return _EMBEDDER
+
+
+def _hashing_embedding(text: str, dim: int = EMBEDDING_DIM) -> List[float]:
+    """Deterministic character 3-gram hashing vectorizer, L2-normalized.
+
+    Signed hashing (the sign bit of the digest decides +1/-1) keeps the
+    expected dot product of unrelated texts near zero. Fully reproducible
+    across processes: uses blake2b, never Python's salted `hash()`.
+    """
+    vector = np.zeros(dim, dtype=np.float64)
+    normalized = " ".join((text or "").lower().split())
+    if not normalized:
+        return vector.tolist()
+
+    padded = f"  {normalized}  "
+    for i in range(len(padded) - 2):
+        digest = hashlib.blake2b(padded[i:i + 3].encode("utf-8"), digest_size=8).digest()
+        value = int.from_bytes(digest, "big")
+        vector[value % dim] += 1.0 if (value >> 63) & 1 else -1.0
+
+    norm = float(np.linalg.norm(vector))
+    if norm > 0:
+        vector /= norm
+    return vector.tolist()
+
+
+def embed_text(text: str) -> Tuple[List[float], str]:
+    """Return (vector, method) where method is 'sentence-transformers' or 'hashing'."""
+    model = _load_embedder()
+    if model is not None:
+        try:
+            vector = model.encode(text or "", normalize_embeddings=True)
+            return [float(v) for v in np.asarray(vector).ravel()], "sentence-transformers"
+        except Exception as e:
+            logger.warning("Embedding via sentence-transformers failed", error=str(e))
+    return _hashing_embedding(text), "hashing"
+
+
+def stable_point_id(value: str) -> int:
+    return int.from_bytes(hashlib.blake2b(str(value).encode("utf-8"), digest_size=8).digest(), "big") % (2 ** 63)
 
 
 class LearningAgent(BaseAgent):
@@ -17,6 +82,7 @@ class LearningAgent(BaseAgent):
         )
         self.episodic_memory: Dict[str, Dict[str, Any]] = {}
         self.semantic_memory: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.semantic_vectors: Dict[str, Dict[str, Any]] = {}
         self.incident_patterns: Dict[str, Dict[str, Any]] = {}
         self.response_times: Dict[str, List[float]] = defaultdict(list)
         self.similarity_threshold: float = 0.75
@@ -411,19 +477,38 @@ class LearningAgent(BaseAgent):
             logger.warning(f"Failed to store incident in Neo4j", error=str(e))
 
     async def _store_embedding(self, incident: Dict[str, Any]):
+        incident_id = incident.get("incident_id", "")
+        text = f"{incident.get('summary', incident.get('description', ''))} {json.dumps(incident.get('techniques', []))}"
+        vector, method = embed_text(text)
+
+        self.semantic_vectors[incident_id] = {
+            "vector": vector,
+            "method": method,
+            "text": text[:1000],
+        }
+
         try:
-            incident_id = incident.get("incident_id", "")
-            text = f"{incident.get('summary', incident.get('description', ''))} {json.dumps(incident.get('techniques', []))}"
             qdrant_client.upsert(
                 collection_name="incident_memory",
                 points=[{
-                    "id": hash(incident_id) % (2**63),
-                    "vector": [0.0] * 384,
-                    "payload": {"incident_id": incident_id, "text": text[:1000]},
+                    "id": stable_point_id(incident_id),
+                    "vector": vector,
+                    "payload": {
+                        "incident_id": incident_id,
+                        "text": text[:1000],
+                        "embedding_method": method,
+                        "embedding_dim": len(vector),
+                    },
                 }]
             )
+            logger.debug("Stored incident embedding", incident_id=incident_id, method=method)
         except Exception as e:
-            logger.warning(f"Failed to store embedding in Qdrant", error=str(e))
+            logger.warning(
+                "Qdrant unavailable, embedding kept in local semantic memory",
+                incident_id=incident_id,
+                method=method,
+                error=str(e),
+            )
 
     def _extract_lessons(self, incident: Dict[str, Any]) -> Dict[str, Any]:
         return {

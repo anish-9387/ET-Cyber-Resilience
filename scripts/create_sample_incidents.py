@@ -18,7 +18,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1566", "T1059", "T1003", "T1021", "T1486"],
         "affected_assets": ["srv-file-01", "srv-ehr-01", "srv-backup-01"],
         "detection_source": "EDR + Network Analytics",
-        "mttr_minutes": 47,
+        "simulated_resolution_minutes": 47,
         "timestamp": (datetime.utcnow() - timedelta(days=2)).isoformat()
     },
     {
@@ -29,7 +29,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1566", "T1204"],
         "affected_assets": ["ws-rajesh-01", "ws-meera-01"],
         "detection_source": "Email Gateway + EDR",
-        "mttr_minutes": 8,
+        "simulated_resolution_minutes": 8,
         "timestamp": (datetime.utcnow() - timedelta(days=5)).isoformat()
     },
     {
@@ -40,7 +40,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1078", "T1530"],
         "affected_assets": ["srv-ehr-01"],
         "detection_source": "Behaviour Learning Agent",
-        "mttr_minutes": 12,
+        "simulated_resolution_minutes": 12,
         "timestamp": (datetime.utcnow() - timedelta(hours=6)).isoformat()
     },
     {
@@ -51,7 +51,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1498", "T1499"],
         "affected_assets": ["srv-web-01", "fw-main-01"],
         "detection_source": "Network Monitoring",
-        "mttr_minutes": 34,
+        "simulated_resolution_minutes": 34,
         "timestamp": (datetime.utcnow() - timedelta(days=1)).isoformat()
     },
     {
@@ -62,7 +62,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1110"],
         "affected_assets": ["vpn-01"],
         "detection_source": "Firewall Logs",
-        "mttr_minutes": 5,
+        "simulated_resolution_minutes": 5,
         "timestamp": (datetime.utcnow() - timedelta(days=3)).isoformat()
     },
     {
@@ -73,7 +73,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1204", "T1059"],
         "affected_assets": ["ws-radio-01", "srv-pacs-01"],
         "detection_source": "Endpoint Protection",
-        "mttr_minutes": 15,
+        "simulated_resolution_minutes": 15,
         "timestamp": (datetime.utcnow() - timedelta(days=7)).isoformat()
     },
     {
@@ -84,7 +84,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1059", "T1078", "T1003"],
         "affected_assets": ["srv-ad-01", "ws-vikram-01"],
         "detection_source": "Threat Prediction Agent",
-        "mttr_minutes": 3,
+        "simulated_resolution_minutes": 3,
         "timestamp": (datetime.utcnow() - timedelta(hours=12)).isoformat()
     },
     {
@@ -95,7 +95,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1048", "T1572"],
         "affected_assets": ["srv-ehr-01", "fw-dmz-01"],
         "detection_source": "Network Analytics + Behaviour Agent",
-        "mttr_minutes": 0,
+        "simulated_resolution_minutes": 0,
         "timestamp": (datetime.utcnow() - timedelta(hours=2)).isoformat()
     },
     {
@@ -106,7 +106,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1530"],
         "affected_assets": ["srv-backup-01"],
         "detection_source": "Cloud Security Scanner",
-        "mttr_minutes": 30,
+        "simulated_resolution_minutes": 30,
         "timestamp": (datetime.utcnow() - timedelta(days=10)).isoformat()
     },
     {
@@ -117,7 +117,7 @@ INCIDENTS = [
         "mitre_techniques": ["T1190", "T1068", "T1021"],
         "affected_assets": ["ws-vikram-01", "srv-db-01"],
         "detection_source": "Vulnerability Scanner + Threat Prediction",
-        "mttr_minutes": 2,
+        "simulated_resolution_minutes": 2,
         "timestamp": (datetime.utcnow() - timedelta(days=1)).isoformat()
     },
 ]
@@ -140,7 +140,8 @@ async def create_incident_direct(incident, index):
     print(f"  [{index+1}] {incident['title']}")
     print(f"       Severity: {incident['severity']}, Status: {incident['status']}")
     print(f"       MITRE: {', '.join(incident['mitre_techniques'])}")
-    print(f"       MTTR: {incident['mttr_minutes']} minutes")
+    print(f"       Simulated resolution latency: {incident['simulated_resolution_minutes']} min "
+          f"(seed value, NOT a measured MTTR - see backend/app/evaluation/timing_eval.py)")
     print()
 
 

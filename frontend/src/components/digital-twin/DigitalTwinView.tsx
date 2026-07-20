@@ -1,76 +1,87 @@
 'use client';
 
-import { useState, useRef, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Text, Sphere, Line, Html } from '@react-three/drei';
-import { cn } from '@/lib/utils';
-import { TwinNodeDetail } from './TwinNodeDetail';
+import { useMemo, useRef, useState, Suspense } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { cn } from '@/lib/utils';
+import { api, Asset, AssetGraph, Criticality } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
+import { TwinNodeDetail } from './TwinNodeDetail';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 
-interface TwinNode {
-  id: string;
-  label: string;
-  type: string;
-  status: 'healthy' | 'degraded' | 'compromised' | 'recovering';
-  ip: string;
-  risk: number;
+const criticalityColors: Record<string, string> = {
+  critical: '#ef4444',
+  high: '#f97316',
+  medium: '#eab308',
+  low: '#22c55e',
+};
+
+interface PositionedAsset {
+  asset: Asset;
   position: [number, number, number];
 }
 
-interface TwinEdge {
-  source: string;
-  target: string;
-  status: 'normal' | 'attack' | 'suspicious';
-  animated?: boolean;
+/**
+ * Deterministic 3D layout: assets are placed on concentric rings, one ring per
+ * criticality tier, so the most critical infrastructure sits at the centre.
+ * Positions are derived from the data — the previous version hardcoded them.
+ */
+function layoutAssets(assets: Asset[]): PositionedAsset[] {
+  const tiers: Criticality[] = ['critical', 'high', 'medium', 'low'];
+  const grouped = new Map<string, Asset[]>();
+  for (const asset of assets) {
+    const key = tiers.includes(asset.criticality) ? asset.criticality : 'low';
+    const list = grouped.get(key) ?? [];
+    list.push(asset);
+    grouped.set(key, list);
+  }
+
+  const positioned: PositionedAsset[] = [];
+  tiers.forEach((tier, tierIndex) => {
+    const group = (grouped.get(tier) ?? []).slice().sort((a, b) => a.id.localeCompare(b.id));
+    const radius = tierIndex === 0 ? 0.8 : tierIndex * 2.4;
+    const y = 2 - tierIndex * 1.3;
+    group.forEach((asset, idx) => {
+      const angle = group.length === 1 ? 0 : (idx / group.length) * Math.PI * 2;
+      positioned.push({
+        asset,
+        position: [
+          Math.cos(angle) * radius,
+          y + (idx % 2 === 0 ? 0.25 : -0.25),
+          Math.sin(angle) * radius,
+        ],
+      });
+    });
+  });
+
+  return positioned;
 }
 
-const mockNodes: TwinNode[] = [
-  { id: 'dc-1', label: 'DC-01', type: 'Server', status: 'compromised', ip: '10.0.1.10', risk: 92, position: [-3, 1, 0] },
-  { id: 'sql-1', label: 'SQL-01', type: 'Database', status: 'degraded', ip: '10.0.1.20', risk: 65, position: [0, 1, 3] },
-  { id: 'web-1', label: 'WEB-01', type: 'Server', status: 'healthy', ip: '10.0.1.30', risk: 15, position: [3, 1, 0] },
-  { id: 'fw-1', label: 'Firewall', type: 'Network', status: 'healthy', ip: '10.0.0.1', risk: 5, position: [0, 3, -3] },
-  { id: 'ws-12', label: 'WS-12', type: 'Workstation', status: 'compromised', ip: '10.0.2.12', risk: 88, position: [-2, -1, 2] },
-  { id: 'ws-08', label: 'WS-08', type: 'Workstation', status: 'degraded', ip: '10.0.2.8', risk: 45, position: [2, -1, -2] },
-  { id: 'ws-15', label: 'WS-15', type: 'Workstation', status: 'healthy', ip: '10.0.2.15', risk: 10, position: [-2, -1, -2] },
-];
-
-const mockEdges: TwinEdge[] = [
-  { source: 'fw-1', target: 'dc-1', status: 'attack', animated: true },
-  { source: 'fw-1', target: 'sql-1', status: 'normal' },
-  { source: 'fw-1', target: 'web-1', status: 'normal' },
-  { source: 'dc-1', target: 'ws-12', status: 'attack', animated: true },
-  { source: 'dc-1', target: 'ws-08', status: 'suspicious', animated: true },
-  { source: 'sql-1', target: 'ws-08', status: 'normal' },
-  { source: 'web-1', target: 'ws-15', status: 'normal' },
-];
-
-const statusColors: Record<string, string> = {
-  healthy: '#22c55e',
-  degraded: '#eab308',
-  compromised: '#ef4444',
-  recovering: '#06b6d4',
-};
-
-const edgeColors: Record<string, string> = {
-  normal: '#1e293b',
-  suspicious: '#f97316',
-  attack: '#ef4444',
-};
-
-function NetworkNode3D({ node, selected, onClick }: { node: TwinNode; selected: boolean; onClick: () => void }) {
-  const color = statusColors[node.status];
+function AssetNode3D({
+  item,
+  selected,
+  onClick,
+}: {
+  item: PositionedAsset;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const color = criticalityColors[item.asset.criticality] || '#6b7280';
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
-    if (meshRef.current && node.status === 'compromised') {
-      meshRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 3) * 0.05);
+    if (meshRef.current && item.asset.criticality === 'critical') {
+      meshRef.current.scale.setScalar(
+        1 + Math.sin(state.clock.elapsedTime * 2.5) * 0.05
+      );
     }
   });
 
   return (
     <group onClick={onClick}>
-      <mesh ref={meshRef} position={node.position}>
-        <sphereGeometry args={[selected ? 0.6 : 0.5, 32, 32]} />
+      <mesh ref={meshRef} position={item.position}>
+        <sphereGeometry args={[selected ? 0.42 : 0.34, 32, 32]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
@@ -80,163 +91,197 @@ function NetworkNode3D({ node, selected, onClick }: { node: TwinNode; selected: 
         />
       </mesh>
       {selected && (
-        <mesh position={node.position}>
-          <sphereGeometry args={[0.7, 32, 32]} />
+        <mesh position={item.position}>
+          <sphereGeometry args={[0.55, 32, 32]} />
           <meshBasicMaterial color={color} transparent opacity={0.15} />
         </mesh>
       )}
-      <Html position={[node.position[0], node.position[1] - 0.9, node.position[2]]} center>
-        <div className={cn(
-          'px-2 py-1 rounded text-[10px] font-medium whitespace-nowrap',
-          'bg-surface-card/90 border shadow-lg backdrop-blur-sm',
-          node.status === 'compromised' ? 'border-accent-red/50 text-accent-red' :
-          node.status === 'degraded' ? 'border-accent-yellow/30 text-accent-yellow' :
-          node.status === 'healthy' ? 'border-accent-green/30 text-accent-green' :
-          'border-accent-cyan/30 text-accent-cyan'
-        )}>
-          {node.label}
+      <Html
+        position={[item.position[0], item.position[1] - 0.7, item.position[2]]}
+        center
+        distanceFactor={12}
+      >
+        <div
+          className={cn(
+            'px-2 py-1 rounded text-[10px] font-medium whitespace-nowrap',
+            'bg-surface-card/90 border shadow-lg backdrop-blur-sm'
+          )}
+          style={{ borderColor: `${color}66`, color }}
+        >
+          {item.asset.name}
         </div>
       </Html>
     </group>
   );
 }
 
-function AnimatedEdge({ start, end, color, animated }: { start: [number, number, number]; end: [number, number, number]; color: string; animated?: boolean }) {
-  const ref = useRef<any>(null);
-  const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
-
-  useFrame((state) => {
-    if (ref.current && animated) {
-      ref.current.material.dashOffset = state.clock.elapsedTime * 2;
-    }
-  });
+function Edge3D({
+  start,
+  end,
+}: {
+  start: [number, number, number];
+  end: [number, number, number];
+}) {
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute([...start, ...end], 3)
+    );
+    return g;
+  }, [start, end]);
 
   return (
-    <line ref={ref}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={points.length}
-          array={new Float32Array(points.flatMap((p) => [p.x, p.y, p.z]))}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineDashedMaterial
-        color={color}
-        dashSize={animated ? 0.3 : 0}
-        gapSize={animated ? 0.2 : 0}
-        transparent
-        opacity={animated ? 0.8 : 0.3}
-        linewidth={1}
-      />
-    </line>
+    <primitive
+      object={
+        new THREE.Line(
+          geometry,
+          new THREE.LineBasicMaterial({
+            color: '#334155',
+            transparent: true,
+            opacity: 0.5,
+          })
+        )
+      }
+    />
   );
 }
 
-function Scene({ nodes, edges, onNodeClick, selectedId }: {
-  nodes: TwinNode[];
-  edges: TwinEdge[];
-  onNodeClick: (id: string) => void;
+function Scene({
+  items,
+  graph,
+  selectedId,
+  onSelect,
+}: {
+  items: PositionedAsset[];
+  graph: AssetGraph;
   selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
-  const nodePositions = new Map(nodes.map((n) => [n.id, n.position]));
+  const positions = useMemo(
+    () => new Map(items.map((i) => [i.asset.id, i.position])),
+    [items]
+  );
 
   return (
     <>
-      <ambientLight intensity={0.3} />
+      <ambientLight intensity={0.4} />
       <pointLight position={[5, 5, 5]} intensity={0.8} />
       <pointLight position={[-5, -5, 5]} intensity={0.4} color="#06b6d4" />
-      <fog attach="fog" args={['#0a0e17', 10, 20]} />
+      <fog attach="fog" args={['#0a0e17', 12, 26]} />
 
       <OrbitControls
         enableDamping
         dampingFactor={0.05}
-        minDistance={3}
-        maxDistance={15}
+        minDistance={4}
+        maxDistance={22}
         autoRotate
-        autoRotateSpeed={0.5}
+        autoRotateSpeed={0.4}
       />
 
-      {edges.map((edge, idx) => {
-        const start = nodePositions.get(edge.source);
-        const end = nodePositions.get(edge.target);
+      {graph.relationships.map((rel) => {
+        const start = positions.get(rel.source_asset_id);
+        const end = positions.get(rel.target_asset_id);
         if (!start || !end) return null;
-        return (
-          <AnimatedEdge
-            key={`edge-${idx}`}
-            start={start}
-            end={end}
-            color={edgeColors[edge.status]}
-            animated={edge.animated}
-          />
-        );
+        return <Edge3D key={rel.id} start={start} end={end} />;
       })}
 
-      {nodes.map((node) => (
-        <NetworkNode3D
-          key={node.id}
-          node={node}
-          selected={selectedId === node.id}
-          onClick={() => onNodeClick(node.id)}
+      {items.map((item) => (
+        <AssetNode3D
+          key={item.asset.id}
+          item={item}
+          selected={selectedId === item.asset.id}
+          onClick={() => onSelect(item.asset.id)}
         />
       ))}
     </>
   );
 }
 
+/** 3D asset topology from GET /digital-twin/graph. */
 export function DigitalTwinView() {
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [webglSupported, setWebglSupported] = useState(true);
 
-  const selectedNode = mockNodes.find((n) => n.id === selectedNodeId) || null;
+  const state = useApi(() => api.getTwinGraph(), [], 15000);
+  const graph = state.data;
 
-  if (!webglSupported) {
-    return (
-      <div className="bg-surface-card border border-surface-border rounded-xl p-8 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-400 mb-2">WebGL is not available in your browser</p>
-          <p className="text-xs text-gray-600">Falling back to 2D network view</p>
-        </div>
-      </div>
-    );
-  }
+  const items = useMemo(() => (graph ? layoutAssets(graph.nodes) : []), [graph]);
+  const selectedAsset =
+    items.find((i) => i.asset.id === selectedId)?.asset ?? null;
 
   return (
     <div className="bg-surface-card border border-surface-border rounded-xl overflow-hidden relative">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-surface-border">
-        <h3 className="text-sm font-semibold text-white">Digital Twin — 3D Network Graph</h3>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-surface-border gap-3 flex-wrap">
+        <div>
+          <h3 className="text-sm font-semibold text-white">
+            Digital Twin — 3D Asset Graph
+          </h3>
+          <p className="text-[10px] text-gray-500 font-mono">
+            {graph
+              ? `${graph.nodes.length} assets · ${graph.relationships.length} relationships`
+              : 'digital-twin/graph'}
+          </p>
+        </div>
         <div className="flex items-center gap-3">
-          {Object.entries(statusColors).map(([key, color]) => (
+          {Object.entries(criticalityColors).map(([key, color]) => (
             <div key={key} className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: color }}
+              />
               <span className="text-[10px] text-gray-500 capitalize">{key}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{ height: 600, width: '100%' }}>
-        <Canvas
-          camera={{ position: [6, 4, 6], fov: 50 }}
-          onCreated={({ gl }) => {
-            const isSupported = gl.capabilities.isWebGL2;
-            if (!isSupported) setWebglSupported(false);
-          }}
-        >
-          <Suspense fallback={null}>
-            <Scene
-              nodes={mockNodes}
-              edges={mockEdges}
-              onNodeClick={(id) => setSelectedNodeId(id === selectedNodeId ? null : id)}
-              selectedId={selectedNodeId}
-            />
-          </Suspense>
-        </Canvas>
-      </div>
+      {state.initialLoading && <LoadingState label="Loading digital twin…" />}
+      {!state.initialLoading && state.error && (
+        <ErrorState error={state.error} onRetry={state.refetch} />
+      )}
+      {!state.initialLoading && !state.error && items.length === 0 && (
+        <EmptyState
+          title="No assets to render"
+          message="The digital twin graph is empty. Note that it only returns assets that participate in at least one relationship."
+        />
+      )}
 
-      {selectedNode && (
+      {!webglSupported && items.length > 0 && (
+        <div className="p-8 text-center">
+          <p className="text-gray-400 mb-2">WebGL is not available in your browser</p>
+          <p className="text-xs text-gray-600">
+            Use the 2D topology on the Dashboard instead.
+          </p>
+        </div>
+      )}
+
+      {webglSupported && items.length > 0 && graph && (
+        <div style={{ height: 600, width: '100%' }}>
+          <Canvas
+            camera={{ position: [7, 5, 7], fov: 50 }}
+            onCreated={({ gl }) => {
+              if (!gl.capabilities.isWebGL2) setWebglSupported(false);
+            }}
+          >
+            <Suspense fallback={null}>
+              <Scene
+                items={items}
+                graph={graph}
+                selectedId={selectedId}
+                onSelect={(id) => setSelectedId(id === selectedId ? null : id)}
+              />
+            </Suspense>
+          </Canvas>
+        </div>
+      )}
+
+      {selectedAsset && (
         <div className="absolute top-16 right-4 w-80 z-10">
-          <TwinNodeDetail node={selectedNode} onClose={() => setSelectedNodeId(null)} />
+          <TwinNodeDetail
+            asset={selectedAsset}
+            onClose={() => setSelectedId(null)}
+          />
         </div>
       )}
     </div>

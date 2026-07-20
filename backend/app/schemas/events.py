@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -45,15 +45,14 @@ class EventResponse(BaseModel):
     title: str
     description: str
     raw_data: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict, validation_alias="metadata_")
     tags: List[str] = []
     correlation_id: Optional[str] = None
     processed: bool = False
     timestamp: datetime
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class EventSearchParams(BaseModel):
