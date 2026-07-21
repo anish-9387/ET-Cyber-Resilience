@@ -104,7 +104,7 @@ evaluation package exists so that every such claim is reproducible or absent.
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14, TypeScript, Tailwind, React Flow, Three.js, Recharts |
+| Frontend | Next.js 16 (Turbopack), React 19, TypeScript, Tailwind, React Flow, Three.js, Recharts |
 | Backend | FastAPI, Python 3.11+ |
 | Relational | SQLite (default) or PostgreSQL |
 | ML | scikit-learn (IsolationForest), NumPy, NetworkX |
