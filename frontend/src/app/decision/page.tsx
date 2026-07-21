@@ -109,7 +109,7 @@ function ApprovalQueue({ onChanged }: { onChanged: () => void }) {
           </p>
         </div>
         {hasPending && (
-          <Badge variant="warning" size="md" className="ml-auto animate-pulse">
+          <Badge variant="warning" size="md" className="ml-auto">
             {pending.length} awaiting
           </Badge>
         )}
@@ -192,7 +192,7 @@ function ApprovalQueue({ onChanged }: { onChanged: () => void }) {
                     [item.execution_id]: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50"
+                className="w-full px-3 py-2 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-blue/50"
               />
 
               <div className="flex items-center gap-2">
@@ -368,7 +368,7 @@ function OptionRow({
                           key={idx}
                           className="text-[11px] text-gray-400 flex items-start gap-1.5"
                         >
-                          <span className="text-accent-cyan mt-0.5">•</span>
+                          <span className="text-accent-blue mt-0.5">•</span>
                           {item}
                         </li>
                       ))}
@@ -381,7 +381,7 @@ function OptionRow({
                   <p className="text-[9px] text-gray-500 uppercase tracking-wider">
                     Score
                   </p>
-                  <p className="text-sm font-mono font-bold text-accent-cyan">
+                  <p className="text-sm font-mono font-bold text-accent-blue">
                     {option.score.toFixed(3)}
                   </p>
                 </div>
@@ -449,7 +449,7 @@ export default function DecisionPage() {
       <div className="space-y-6">
         <div>
           <div className="flex items-center gap-2.5">
-            <Scale className="h-5 w-5 text-accent-cyan" />
+            <Scale className="h-5 w-5 text-accent-blue" />
             <h1 className="text-xl font-bold text-white">Decision Engine</h1>
           </div>
           <p className="text-xs text-gray-500 mt-1">

@@ -12,7 +12,7 @@ const levelStyles: Record<string, string> = {
   critical: 'text-accent-red bg-accent-red/5 border-l-accent-red',
   high: 'text-accent-orange bg-accent-orange/5 border-l-accent-orange',
   medium: 'text-accent-yellow bg-accent-yellow/5 border-l-accent-yellow',
-  low: 'text-gray-300 border-l-accent-cyan',
+  low: 'text-gray-300 border-l-accent-blue',
   info: 'text-gray-500 border-l-gray-600',
 };
 
@@ -55,7 +55,7 @@ export function AgentConsole() {
     <div className="bg-surface-card border border-surface-border rounded-xl overflow-hidden">
       <div className="px-5 py-3 border-b border-surface-border flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <Terminal className="h-5 w-5 text-accent-cyan" />
+          <Terminal className="h-5 w-5 text-accent-blue" />
           <div>
             <h3 className="text-sm font-semibold text-white">Event Console</h3>
             <p className="text-[10px] text-gray-500 font-mono">
@@ -84,7 +84,7 @@ export function AgentConsole() {
             placeholder="Search events…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50"
+            className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-blue/50"
           />
         </div>
         <div className="flex items-center gap-1.5">
@@ -96,7 +96,7 @@ export function AgentConsole() {
               className={cn(
                 'px-2 py-1 text-[10px] rounded font-medium transition-colors capitalize',
                 levelFilter === level
-                  ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
+                  ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                   : 'text-gray-500 hover:text-white hover:bg-surface-border'
               )}
             >
@@ -135,7 +135,7 @@ export function AgentConsole() {
               <span className="text-gray-600 shrink-0">
                 {new Date(event.timestamp).toLocaleTimeString()}
               </span>
-              <span className="shrink-0 px-1.5 rounded text-center bg-accent-cyan/10 text-accent-cyan">
+              <span className="shrink-0 px-1.5 rounded text-center bg-accent-blue/10 text-accent-blue">
                 [{event.source}]
               </span>
               <span

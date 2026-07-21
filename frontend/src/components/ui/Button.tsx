@@ -5,9 +5,9 @@ import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const variants = {
-  primary: 'bg-accent-cyan text-black hover:bg-cyan-600 shadow-glow-cyan',
+  primary: 'bg-accent-blue text-white hover:bg-blue-600',
   secondary: 'bg-surface-card border border-surface-border text-gray-200 hover:bg-surface-border',
-  danger: 'bg-accent-red text-white hover:bg-red-600 shadow-glow-red',
+  danger: 'bg-accent-red text-white hover:bg-red-600',
   ghost: 'text-gray-400 hover:text-white hover:bg-surface-card',
 };
 
@@ -31,7 +31,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-cyan/50 disabled:opacity-50 disabled:cursor-not-allowed',
+          'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-blue/50 disabled:opacity-50 disabled:cursor-not-allowed',
           variants[variant],
           sizes[size],
           className

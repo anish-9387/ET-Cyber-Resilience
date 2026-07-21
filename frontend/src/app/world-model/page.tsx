@@ -39,11 +39,11 @@ export default function WorldModelPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2.5">
-              <Globe className="h-5 w-5 text-accent-cyan" />
+              <Globe className="h-5 w-5 text-accent-blue" />
               <h1 className="text-xl font-bold text-white">Living World Model</h1>
-              <span className="flex items-center gap-1 text-[10px] text-accent-green font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-                3s
+              <span className="flex items-center gap-1 text-[10px] text-gray-500 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                3s poll
               </span>
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -75,7 +75,7 @@ export default function WorldModelPage() {
                 <p className="text-[9px] text-gray-500 uppercase tracking-wider">
                   Relations
                 </p>
-                <p className="text-lg font-bold font-mono text-accent-cyan">
+                <p className="text-lg font-bold font-mono text-accent-blue">
                   {summary.relation_count}
                 </p>
               </div>

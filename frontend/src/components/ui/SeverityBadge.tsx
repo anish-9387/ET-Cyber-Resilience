@@ -10,7 +10,7 @@ const severityConfig = {
   critical: { bg: 'bg-accent-red/20', text: 'text-accent-red', border: 'border-accent-red/30', dot: 'bg-accent-red' },
   high: { bg: 'bg-accent-orange/20', text: 'text-accent-orange', border: 'border-accent-orange/30', dot: 'bg-accent-orange' },
   medium: { bg: 'bg-accent-yellow/20', text: 'text-accent-yellow', border: 'border-accent-yellow/30', dot: 'bg-accent-yellow' },
-  low: { bg: 'bg-accent-cyan/20', text: 'text-accent-cyan', border: 'border-accent-cyan/30', dot: 'bg-accent-cyan' },
+  low: { bg: 'bg-accent-blue/20', text: 'text-accent-blue', border: 'border-accent-blue/30', dot: 'bg-accent-blue' },
   info: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30', dot: 'bg-blue-500' },
 };
 

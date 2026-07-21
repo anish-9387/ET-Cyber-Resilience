@@ -49,7 +49,7 @@ function AuditRow({ entry, onRollback }: { entry: AuditEntry; onRollback: (id: s
           className={cn(
             'p-1.5 rounded-lg shrink-0 mt-0.5',
             isAutomated
-              ? 'bg-accent-cyan/15 text-accent-cyan'
+              ? 'bg-accent-blue/15 text-accent-blue'
               : 'bg-accent-green/15 text-accent-green'
           )}
         >
@@ -123,7 +123,7 @@ function AuditRow({ entry, onRollback }: { entry: AuditEntry; onRollback: (id: s
                     key={idx}
                     className="text-[11px] text-gray-400 flex items-start gap-1.5"
                   >
-                    <span className="text-accent-cyan mt-0.5">•</span>
+                    <span className="text-accent-blue mt-0.5">•</span>
                     {item}
                   </li>
                 ))}
@@ -215,7 +215,7 @@ export default function AuditPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2.5">
-              <ScrollText className="h-5 w-5 text-accent-cyan" />
+              <ScrollText className="h-5 w-5 text-accent-blue" />
               <h1 className="text-xl font-bold text-white">Audit Trail</h1>
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -229,7 +229,7 @@ export default function AuditPage() {
             <div className="flex items-center gap-3 flex-wrap">
               {[
                 ['Actions logged', entries.length, 'text-white'],
-                ['Automated', automatedCount, 'text-accent-cyan'],
+                ['Automated', automatedCount, 'text-accent-blue'],
                 ['Human-approved', approvedCount, 'text-accent-green'],
               ].map(([label, value, color]) => (
                 <div
@@ -276,7 +276,7 @@ export default function AuditPage() {
                   placeholder="Search actions, targets, reasoning…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-blue/50"
                 />
               </div>
               <div className="flex items-center gap-1.5">
@@ -287,7 +287,7 @@ export default function AuditPage() {
                     className={cn(
                       'px-2 py-1 text-[10px] rounded font-medium transition-colors capitalize',
                       actorType === f
-                        ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
+                        ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                         : 'text-gray-500 hover:text-white hover:bg-surface-border'
                     )}
                   >

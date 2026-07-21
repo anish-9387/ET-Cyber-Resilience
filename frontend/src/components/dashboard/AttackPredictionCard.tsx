@@ -28,8 +28,8 @@ export function AttackPredictionCard() {
         </div>
         {belief && (
           <div className="ml-auto flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-red animate-pulse" />
-            <span className="text-[10px] text-accent-red font-mono">ACTIVE</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+            <span className="text-[10px] text-accent-red font-mono">Active</span>
           </div>
         )}
       </div>
@@ -93,12 +93,12 @@ export function AttackPredictionCard() {
           </div>
 
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface/50">
-            <div className="p-1.5 rounded bg-accent-cyan/10 text-accent-cyan">
+            <div className="p-1.5 rounded bg-accent-blue/10 text-accent-blue">
               <AlertTriangle className="h-3.5 w-3.5" />
             </div>
             <div>
               <p className="text-[10px] text-gray-500">Estimated time to next step</p>
-              <p className="text-xs text-accent-cyan font-mono font-medium">
+              <p className="text-xs text-accent-blue font-mono font-medium">
                 ~{next.eta_minutes} minutes
               </p>
             </div>

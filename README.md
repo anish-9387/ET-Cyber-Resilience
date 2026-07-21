@@ -1,4 +1,4 @@
-# Sentinel — Cyber World Model for Critical National Infrastructure
+# Sentinel - Cyber World Model for Critical National Infrastructure
 
 Sentinel maintains a **living probabilistic model** of an organisation's cyber
 environment. Rather than asking "did an attack happen?", it asks what the
@@ -44,7 +44,7 @@ an endpoint is missing it fails loudly and exits non-zero.
 
 ## What is actually measured
 
-**Do not trust performance claims in a README — including this one.** Run the
+**Do not trust performance claims in a README - including this one.** Run the
 harness and read the numbers it prints:
 
 ```bash
@@ -77,7 +77,7 @@ evaluation package exists so that every such claim is reproducible or absent.
   payload carries `mode: "simulated"`, `integration: "none"`, `enforced: false`.
   Automation coverage reports `steps_automatable_by_policy` separately from
   `steps_with_real_integration` (which is zero).
-- **MITRE coverage is partial** — 49 of ~625 Enterprise techniques and no
+- **MITRE coverage is partial** - 49 of ~625 Enterprise techniques and no
   sub-techniques. The attribution report states this ceiling explicitly.
 - **The MTTD/MTTR baseline is an external industry reference**, not a SOC
   measured here, and is not a like-for-like comparison.
@@ -92,7 +92,7 @@ evaluation package exists so that every such claim is reproducible or absent.
 |---|---|
 | **Probabilistic world model** | Per-entity `P(compromised)` with confidence, updated by Bayesian evidence fusion in log-odds space, with recency decay and direction-aware neighbour propagation |
 | **Attacker belief** | Objective inference, inferred attacker knowledge, campaign attribution by technique-set Jaccard similarity |
-| **Defender belief** | Models Sentinel's *own* uncertainty — which beliefs are weak, what evidence is missing, what to collect next |
+| **Defender belief** | Models Sentinel's *own* uncertainty - which beliefs are weak, what evidence is missing, what to collect next |
 | **Attack forecast** | Deterministic probability-tree expansion into multiple ranked futures with target entities and ETAs |
 | **Counterfactual** | Applies interventions to a model clone, re-forecasts, reports which attack paths were severed |
 | **Mission impact** | Availability of patient care, emergency response, diagnostics, records, power and water as dependent-entity beliefs shift |
@@ -112,7 +112,7 @@ evaluation package exists so that every such claim is reproducible or absent.
 | Threat intel | MITRE ATT&CK, CISA KEV, NVD |
 | Telemetry formats | Windows/Sysmon, Linux, syslog, auditd, Zeek, Suricata, Wazuh, firewall, CloudTrail |
 
-Kafka, LangGraph and CrewAI were previously listed here. None are used —
+Kafka, LangGraph and CrewAI were previously listed here. None are used -
 orchestration is a hand-rolled coordinator and the event bus is in-process with
 optional Redis pub/sub.
 

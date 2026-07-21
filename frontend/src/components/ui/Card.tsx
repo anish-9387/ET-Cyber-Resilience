@@ -13,7 +13,7 @@ export function Card({ className, children, header, footer, hover }: CardProps) 
     <div
       className={cn(
         'bg-surface-card border border-surface-border rounded-xl overflow-hidden',
-        hover && 'hover:border-accent-cyan/30 transition-colors duration-200',
+        hover && 'hover:border-accent-blue/30 transition-colors duration-200',
         className
       )}
     >

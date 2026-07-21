@@ -78,7 +78,7 @@ export function ThreatIntelDashboard() {
         <StatTile
           label="Total Events"
           value={s?.total_events ?? '—'}
-          color="text-accent-cyan"
+          color="text-accent-blue"
           icon={Activity}
           loading={stats.initialLoading}
         />
@@ -226,9 +226,9 @@ export function ThreatIntelDashboard() {
                     Demonstrated capabilities
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    {belief.data.capabilities.map((capability) => (
-                      <Badge key={capability} variant="danger" size="sm">
-                        {capability}
+                    {belief.data.capabilities.map((cap) => (
+                      <Badge key={cap.capability} variant="danger" size="sm">
+                        {cap.capability}
                       </Badge>
                     ))}
                   </div>

@@ -121,8 +121,8 @@ function NetworkNode({ data }: { data: NetworkNodeData }) {
   return (
     <div
       className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded-lg border bg-surface-card/90 backdrop-blur-sm shadow-lg min-w-[150px] transition-all duration-200 hover:scale-105',
-        data.criticality === 'critical' && 'border-accent-red/50 shadow-glow-red',
+        'flex items-center gap-2 px-3 py-2 rounded-lg border bg-surface-card/90 backdrop-blur-sm shadow-lg min-w-[150px]',
+        data.criticality === 'critical' && 'border-accent-red/50',
         data.criticality === 'high' && 'border-accent-orange/40',
         data.criticality === 'medium' && 'border-accent-yellow/30',
         data.criticality === 'low' && 'border-accent-green/20'

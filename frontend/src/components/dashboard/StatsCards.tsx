@@ -16,10 +16,10 @@ interface StatCardProps {
 }
 
 const colorConfig = {
-  red: { bg: 'bg-accent-red/10', border: 'border-accent-red/20', text: 'text-accent-red', glow: 'shadow-glow-red' },
-  yellow: { bg: 'bg-accent-yellow/10', border: 'border-accent-yellow/20', text: 'text-accent-yellow', glow: '' },
-  cyan: { bg: 'bg-accent-cyan/10', border: 'border-accent-cyan/20', text: 'text-accent-cyan', glow: 'shadow-glow-cyan' },
-  green: { bg: 'bg-accent-green/10', border: 'border-accent-green/20', text: 'text-accent-green', glow: 'shadow-glow' },
+  red: { bg: 'bg-accent-red/10', border: 'border-accent-red/20', text: 'text-accent-red' },
+  yellow: { bg: 'bg-accent-yellow/10', border: 'border-accent-yellow/20', text: 'text-accent-yellow' },
+  cyan: { bg: 'bg-accent-blue/10', border: 'border-accent-blue/20', text: 'text-accent-blue' },
+  green: { bg: 'bg-accent-green/10', border: 'border-accent-green/20', text: 'text-accent-green' },
 };
 
 function StatCard({ title, value, icon, color, subtitle, loading }: StatCardProps) {
@@ -28,10 +28,9 @@ function StatCard({ title, value, icon, color, subtitle, loading }: StatCardProp
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-xl border p-5 transition-all duration-200 hover:scale-[1.02]',
+        'relative overflow-hidden rounded-xl border p-5',
         cfg.bg,
         cfg.border,
-        cfg.glow
       )}
     >
       <div className="flex items-start justify-between">

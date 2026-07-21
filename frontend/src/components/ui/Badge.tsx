@@ -12,7 +12,7 @@ const variantStyles = {
   success: 'bg-accent-green/20 text-accent-green border-accent-green/30',
   warning: 'bg-accent-yellow/20 text-accent-yellow border-accent-yellow/30',
   danger: 'bg-accent-red/20 text-accent-red border-accent-red/30',
-  info: 'bg-accent-cyan/20 text-accent-cyan border-accent-cyan/30',
+  info: 'bg-accent-blue/20 text-accent-blue border-accent-blue/30',
 };
 
 export function Badge({ variant = 'default', size = 'sm', className, children }: BadgeProps) {

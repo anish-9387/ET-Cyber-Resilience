@@ -106,7 +106,7 @@ export default function ScenarioPage() {
                   className={cn(
                     'px-2 py-1 text-[10px] rounded font-mono font-medium transition-colors',
                     speed === s
-                      ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
+                      ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                       : 'text-gray-500 hover:text-white hover:bg-surface-border'
                   )}
                 >
@@ -140,12 +140,12 @@ export default function ScenarioPage() {
             <Activity
               className={cn(
                 'h-4 w-4',
-                running ? 'text-accent-green animate-pulse' : 'text-gray-500'
+                running ? 'text-accent-green' : 'text-gray-500'
               )}
             />
             <h3 className="text-sm font-semibold text-white">Run Status</h3>
             {running && (
-              <Badge variant="success" size="sm" className="ml-auto animate-pulse">
+              <Badge variant="success" size="sm" className="ml-auto">
                 running
               </Badge>
             )}
@@ -339,7 +339,7 @@ export default function ScenarioPage() {
                 </div>
                 <a
                   href="/world-model"
-                  className="flex items-center justify-center gap-1.5 px-5 py-3 border-t border-surface-border text-xs text-accent-cyan hover:bg-surface/40 transition-colors"
+                  className="flex items-center justify-center gap-1.5 px-5 py-3 border-t border-surface-border text-xs text-accent-blue hover:bg-surface/40 transition-colors"
                 >
                   Open the full world model
                   <ArrowRight className="h-3.5 w-3.5" />

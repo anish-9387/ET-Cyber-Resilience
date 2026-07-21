@@ -118,7 +118,7 @@ function FutureCard({
                 </div>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <span className="text-[10px] text-gray-500">{step.tactic}</span>
-                  <span className="flex items-center gap-1 text-[10px] text-accent-cyan font-mono">
+                  <span className="flex items-center gap-1 text-[10px] text-accent-blue font-mono">
                     <ArrowRight className="h-2.5 w-2.5" />
                     {step.target_entity}
                   </span>
@@ -177,7 +177,7 @@ function CounterfactualPanel() {
   return (
     <div className="bg-surface-card border border-surface-border rounded-xl overflow-hidden">
       <div className="px-5 py-3.5 border-b border-surface-border flex items-center gap-2.5">
-        <div className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan">
+        <div className="p-1.5 rounded-lg bg-accent-blue/15 text-accent-blue">
           <FlaskConical className="h-4 w-4" />
         </div>
         <div>
@@ -198,7 +198,7 @@ function CounterfactualPanel() {
             <select
               value={draftType}
               onChange={(e) => setDraftType(e.target.value)}
-              className="px-2 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-cyan/50"
+              className="px-2 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-blue/50"
             >
               {INTERVENTION_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -212,7 +212,7 @@ function CounterfactualPanel() {
               onChange={(e) => setDraftTarget(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && add()}
               placeholder="target entity id…"
-              className="flex-1 min-w-[140px] px-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50"
+              className="flex-1 min-w-[140px] px-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-blue/50"
             />
             <Button
               size="sm"
@@ -362,8 +362,8 @@ function CounterfactualPanel() {
             )}
 
             {result.explanation && (
-              <div className="px-3 py-2.5 rounded-lg bg-accent-cyan/5 border border-accent-cyan/20">
-                <p className="text-[10px] text-accent-cyan uppercase tracking-wider mb-1">
+              <div className="px-3 py-2.5 rounded-lg bg-accent-blue/5 border border-accent-blue/20">
+                <p className="text-[10px] text-accent-blue uppercase tracking-wider mb-1">
                   Reasoning
                 </p>
                 <p className="text-xs text-gray-300">{result.explanation}</p>
@@ -409,7 +409,7 @@ export default function ForecastPage() {
                 className={cn(
                   'px-2.5 py-1 text-[10px] rounded font-medium transition-colors font-mono',
                   horizon === h
-                    ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
+                    ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                     : 'text-gray-500 hover:text-white hover:bg-surface-border'
                 )}
               >

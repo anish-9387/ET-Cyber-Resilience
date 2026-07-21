@@ -49,7 +49,7 @@ function BeliefNode({ data }: { data: NodeData }) {
       <div
         className={cn(
           'rounded-full flex flex-col items-center justify-center transition-all duration-500 backdrop-blur-sm',
-          data.selected && 'ring-2 ring-accent-cyan ring-offset-2 ring-offset-surface'
+          data.selected && 'ring-2 ring-accent-blue ring-offset-2 ring-offset-surface'
         )}
         style={{
           width: size,

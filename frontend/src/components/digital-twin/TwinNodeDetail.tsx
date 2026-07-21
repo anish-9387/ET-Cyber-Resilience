@@ -86,7 +86,7 @@ export function TwinNodeDetail({
     <div className="bg-surface-card/95 backdrop-blur-md border border-surface-border rounded-xl shadow-2xl max-h-[560px] overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border sticky top-0 bg-surface-card/95 backdrop-blur-md z-10">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1.5 rounded bg-accent-cyan/15 text-accent-cyan shrink-0">
+          <div className="p-1.5 rounded bg-accent-blue/15 text-accent-blue shrink-0">
             {typeIcons[asset.asset_type] || <Box className="h-4 w-4" />}
           </div>
           <div className="min-w-0">

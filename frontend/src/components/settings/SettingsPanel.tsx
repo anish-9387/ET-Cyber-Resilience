@@ -125,14 +125,14 @@ export function SettingsPanel() {
           title="Backend Connection"
           subtitle="API endpoint and service health"
           icon={<Plug className="h-4 w-4" />}
-          iconClass="bg-accent-cyan/10 text-accent-cyan"
+          iconClass="bg-accent-blue/10 text-accent-blue"
           expanded={expanded === 'connection'}
           onToggle={toggle}
         >
           <div className="space-y-4">
             <div>
               <label className="text-xs text-gray-400 block mb-1">API base URL</label>
-              <p className="px-3 py-2 text-xs bg-surface border border-surface-border rounded-lg text-accent-cyan font-mono break-all">
+              <p className="px-3 py-2 text-xs bg-surface border border-surface-border rounded-lg text-accent-blue font-mono break-all">
                 {API_BASE}
               </p>
               <p className="text-[10px] text-gray-600 mt-1">
@@ -174,7 +174,7 @@ export function SettingsPanel() {
                           className={cn(
                             'w-1.5 h-1.5 rounded-full shrink-0',
                             service.status === 'healthy'
-                              ? 'bg-accent-green animate-pulse'
+                              ? 'bg-accent-green'
                               : service.status === 'unhealthy'
                                 ? 'bg-accent-red'
                                 : 'bg-gray-500'
@@ -218,8 +218,8 @@ export function SettingsPanel() {
           onToggle={toggle}
         >
           <div className="space-y-4">
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-accent-cyan/5 border border-accent-cyan/20">
-              <Info className="h-3.5 w-3.5 text-accent-cyan shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-accent-blue/5 border border-accent-blue/20">
+              <Info className="h-3.5 w-3.5 text-accent-blue shrink-0 mt-0.5" />
               <p className="text-[11px] text-gray-400">
                 The API has no settings endpoint, so these preferences are not
                 persisted — they reset on reload.
@@ -232,7 +232,7 @@ export function SettingsPanel() {
               <select
                 value={refreshInterval}
                 onChange={(e) => setRefreshInterval(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-cyan/50"
+                className="w-full px-3 py-2 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-blue/50"
               >
                 <option value="2">2 seconds</option>
                 <option value="5">5 seconds</option>

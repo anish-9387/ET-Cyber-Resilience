@@ -17,10 +17,10 @@ interface TimelineProps {
 }
 
 const dotColors = {
-  red: 'bg-accent-red border-accent-red/30 shadow-glow-red',
+  red: 'bg-accent-red border-accent-red/30',
   orange: 'bg-accent-orange border-accent-orange/30',
   yellow: 'bg-accent-yellow border-accent-yellow/30',
-  cyan: 'bg-accent-cyan border-accent-cyan/30',
+  cyan: 'bg-accent-blue border-accent-blue/30',
   green: 'bg-accent-green border-accent-green/30',
   gray: 'bg-gray-500 border-gray-500/30',
 };
@@ -35,7 +35,7 @@ export function Timeline({ events, className, animate }: TimelineProps) {
               className={cn(
                 'w-3 h-3 rounded-full border-2 shrink-0 mt-1.5',
                 dotColors[event.color || 'gray'],
-                animate && 'animate-pulse-glow'
+                animate && 'ring-1 ring-accent-blue/30'
               )}
             />
             {idx < events.length - 1 && (

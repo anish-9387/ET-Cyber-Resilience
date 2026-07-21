@@ -155,7 +155,7 @@ export function AttackerBeliefPanel() {
                     </div>
                     <Meter value={move.probability} color="#f97316" />
                     <div className="flex items-center gap-3 mt-1.5">
-                      <span className="flex items-center gap-1 text-[10px] text-accent-cyan font-mono">
+                      <span className="flex items-center gap-1 text-[10px] text-accent-blue font-mono">
                         <Clock className="h-3 w-3" />
                         ETA ~{move.eta_minutes}m
                       </span>
@@ -202,8 +202,8 @@ export function AttackerBeliefPanel() {
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {belief.capabilities.map((c) => (
-                      <Badge key={c} variant="danger" size="sm">
-                        {c}
+                      <Badge key={c.capability} variant="danger" size="sm">
+                        {c.capability}
                       </Badge>
                     ))}
                   </div>
@@ -223,9 +223,9 @@ export function DefenderBeliefPanel() {
   const belief = state.data;
 
   return (
-    <div className="bg-surface-card border border-accent-cyan/25 rounded-xl overflow-hidden">
+    <div className="bg-surface-card border border-accent-blue/25 rounded-xl overflow-hidden">
       <div className="px-5 py-3.5 border-b border-surface-border flex items-center gap-2.5">
-        <div className="p-1.5 rounded-lg bg-accent-cyan/15 text-accent-cyan">
+        <div className="p-1.5 rounded-lg bg-accent-blue/15 text-accent-blue">
           <Eye className="h-4 w-4" />
         </div>
         <div>
@@ -246,7 +246,7 @@ export function DefenderBeliefPanel() {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs text-gray-400">Overall confidence</span>
-              <span className="text-sm font-bold font-mono text-accent-cyan">
+              <span className="text-sm font-bold font-mono text-accent-blue">
                 {Math.round(belief.overall_confidence * 100)}%
               </span>
             </div>
@@ -302,7 +302,7 @@ export function DefenderBeliefPanel() {
                           {entity.recommended_collection.map((r, idx) => (
                             <li
                               key={idx}
-                              className="flex items-start gap-1.5 text-[10px] text-accent-cyan"
+                              className="flex items-start gap-1.5 text-[10px] text-accent-blue"
                             >
                               <Radar className="h-3 w-3 mt-0.5 shrink-0" />
                               {r}

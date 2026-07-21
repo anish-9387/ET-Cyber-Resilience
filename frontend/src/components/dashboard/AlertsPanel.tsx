@@ -60,7 +60,7 @@ export function AlertsPanel() {
             <div className="relative">
               <Bell className="h-5 w-5 text-gray-400" />
               {criticalCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent-red rounded-full animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent-red rounded-full" />
               )}
             </div>
             <div>
@@ -72,8 +72,8 @@ export function AlertsPanel() {
           </div>
           {!state.error && (
             <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-              <span className="text-[10px] text-gray-500">Live</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+              <span className="text-[10px] text-gray-500">Connected</span>
             </div>
           )}
         </div>
@@ -87,7 +87,7 @@ export function AlertsPanel() {
               className={cn(
                 'px-2 py-1 text-[10px] rounded font-medium transition-colors capitalize',
                 filter === f
-                  ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
+                  ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                   : 'text-gray-500 hover:text-white hover:bg-surface-border'
               )}
             >

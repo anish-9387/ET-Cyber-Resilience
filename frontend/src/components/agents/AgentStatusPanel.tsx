@@ -185,7 +185,7 @@ export function AgentStatusPanel() {
                       heartbeat {heartbeatLabel(agent.last_heartbeat)}
                     </p>
                     {results[agent.id] && (
-                      <p className="text-[10px] text-accent-cyan font-mono mt-1">
+                      <p className="text-[10px] text-accent-blue font-mono mt-1">
                         {results[agent.id]}
                       </p>
                     )}

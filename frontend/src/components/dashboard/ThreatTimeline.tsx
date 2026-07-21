@@ -19,7 +19,7 @@ function severityBadge(severity: Severity) {
     critical: 'bg-accent-red/20 text-accent-red border-accent-red/30',
     high: 'bg-accent-orange/20 text-accent-orange border-accent-orange/30',
     medium: 'bg-accent-yellow/20 text-accent-yellow border-accent-yellow/30',
-    low: 'bg-accent-cyan/20 text-accent-cyan border-accent-cyan/30',
+    low: 'bg-accent-blue/20 text-accent-blue border-accent-blue/30',
     info: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   };
   return (
@@ -70,8 +70,8 @@ export function ThreatTimeline() {
         <h3 className="text-sm font-semibold text-white">Threat Timeline</h3>
         {!state.error && !state.initialLoading && (
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-            <span className="text-[10px] text-gray-500 font-mono">LIVE</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
+            <span className="text-[10px] text-gray-500 font-mono">Active</span>
           </div>
         )}
       </div>

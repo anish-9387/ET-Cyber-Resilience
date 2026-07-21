@@ -28,7 +28,7 @@ export function LoadingState({
         className
       )}
     >
-      <Loader2 className="h-6 w-6 animate-spin text-accent-cyan" />
+      <Loader2 className="h-6 w-6 animate-spin text-accent-blue" />
       <p className="text-xs text-gray-500 font-mono">{label}</p>
     </div>
   );

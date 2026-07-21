@@ -11,13 +11,13 @@ interface StatusIndicatorProps {
 }
 
 const statusConfig = {
-  healthy: { color: 'bg-accent-green', glow: 'shadow-glow' },
-  degraded: { color: 'bg-accent-yellow', glow: '' },
-  compromised: { color: 'bg-accent-red', glow: 'shadow-glow-red' },
-  recovering: { color: 'bg-accent-cyan', glow: 'shadow-glow-cyan' },
-  active: { color: 'bg-accent-green', glow: 'shadow-glow' },
-  idle: { color: 'bg-gray-500', glow: '' },
-  error: { color: 'bg-accent-red', glow: 'shadow-glow-red' },
+  healthy: { color: 'bg-accent-green' },
+  degraded: { color: 'bg-accent-yellow' },
+  compromised: { color: 'bg-accent-red' },
+  recovering: { color: 'bg-accent-blue' },
+  active: { color: 'bg-accent-green' },
+  idle: { color: 'bg-gray-500' },
+  error: { color: 'bg-accent-red' },
 };
 
 const sizes = {
@@ -32,9 +32,8 @@ export function StatusIndicator({ status, size = 'md', label, showLabel = true, 
     <span className={cn('inline-flex items-center gap-2', className)}>
       <span
         className={cn(
-          'rounded-full animate-pulse',
+          'rounded-full',
           config.color,
-          config.glow,
           sizes[size]
         )}
       />

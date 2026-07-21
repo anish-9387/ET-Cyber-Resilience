@@ -67,7 +67,7 @@ export function IncidentDetail({
               <SeverityBadge severity={incident.severity as Criticality} size="md" />
             </div>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <span className="text-xs font-mono text-accent-cyan">{incident.id}</span>
+              <span className="text-xs font-mono text-accent-blue">{incident.id}</span>
               <span className="text-xs text-gray-500">·</span>
               <span className="text-xs text-gray-400">
                 {incident.incident_type.replace(/_/g, ' ')}
@@ -93,7 +93,7 @@ export function IncidentDetail({
           <Card
             header={
               <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-accent-cyan" />
+                <Activity className="h-4 w-4 text-accent-blue" />
                 <h3 className="text-sm font-semibold text-white">Incident Timeline</h3>
                 {events.length > 0 && (
                   <Badge variant="default" size="sm">
@@ -143,7 +143,7 @@ export function IncidentDetail({
             <Card
               header={
                 <div className="flex items-center gap-2">
-                  <Fingerprint className="h-4 w-4 text-accent-cyan" />
+                  <Fingerprint className="h-4 w-4 text-accent-blue" />
                   <h3 className="text-sm font-semibold text-white">Indicators</h3>
                   <Badge variant="default" size="sm">
                     {incident.indicators.length}

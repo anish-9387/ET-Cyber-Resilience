@@ -113,7 +113,7 @@ export function EntityDetailPanel({
   return (
     <div className="bg-surface-card border border-surface-border rounded-xl overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
       <div className="px-5 py-3.5 border-b border-surface-border flex items-center gap-2.5 shrink-0">
-        <FileSearch className="h-4 w-4 text-accent-cyan shrink-0" />
+        <FileSearch className="h-4 w-4 text-accent-blue shrink-0" />
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-white truncate">
             {entity?.name ?? entityId}
@@ -153,7 +153,7 @@ export function EntityDetailPanel({
                 <p className="text-[9px] text-gray-500 uppercase tracking-wider">
                   Confidence
                 </p>
-                <p className="text-xl font-bold font-mono text-accent-cyan mt-0.5">
+                <p className="text-xl font-bold font-mono text-accent-blue mt-0.5">
                   {(entity.confidence * 100).toFixed(0)}%
                 </p>
               </div>
@@ -211,7 +211,7 @@ export function EntityDetailPanel({
             {/* Belief history */}
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className="h-3.5 w-3.5 text-accent-cyan" />
+                <TrendingUp className="h-3.5 w-3.5 text-accent-blue" />
                 <p className="text-xs font-medium text-white">Bayesian belief history</p>
               </div>
               <p className="text-[10px] text-gray-500 mb-3">
@@ -302,7 +302,7 @@ export function EntityDetailPanel({
                             </span>
                             {item.derived && (
                               <span
-                                className="flex items-center gap-1 text-[9px] text-accent-cyan"
+                                className="flex items-center gap-1 text-[9px] text-accent-blue"
                                 title={`Propagated depth ${item.propagation_depth} from ${item.origin_entity}`}
                               >
                                 <Link2 className="h-2.5 w-2.5" />

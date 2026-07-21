@@ -160,7 +160,7 @@ function EvaluationSection() {
       <Card
         header={
           <div className="flex items-center gap-2 flex-wrap">
-            <Target className="h-4 w-4 text-accent-cyan" />
+            <Target className="h-4 w-4 text-accent-blue" />
             <h3 className="text-sm font-semibold text-white">Anomaly Detection</h3>
             {d && (
               <Badge variant="info" size="sm">
@@ -190,7 +190,7 @@ function EvaluationSection() {
                 label="Recall"
                 value={pct(d.recall)}
                 suffix="%"
-                color="text-accent-cyan"
+                color="text-accent-blue"
               />
               <MetricTile
                 label="F1 Score"
@@ -208,7 +208,7 @@ function EvaluationSection() {
               <MetricTile
                 label="ROC AUC"
                 value={d.roc_auc?.toFixed(3)}
-                color="text-accent-cyan"
+                color="text-accent-blue"
               />
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -357,7 +357,7 @@ function EvaluationSection() {
         <Card
           header={
             <div className="flex items-center gap-2 flex-wrap">
-              <Timer className="h-4 w-4 text-accent-cyan" />
+              <Timer className="h-4 w-4 text-accent-blue" />
               <h3 className="text-sm font-semibold text-white">
                 MTTD / MTTR vs Baseline
               </h3>
@@ -451,7 +451,7 @@ function OperationalAnalytics() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <BarChart3 className="h-5 w-5 text-accent-cyan" />
+          <BarChart3 className="h-5 w-5 text-accent-blue" />
           <h2 className="text-base font-bold text-white">Operational Analytics</h2>
         </div>
         <div className="flex items-center gap-1.5">
@@ -462,7 +462,7 @@ function OperationalAnalytics() {
               className={cn(
                 'px-2.5 py-1 text-[10px] rounded font-medium transition-colors font-mono',
                 days === d
-                  ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
+                  ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                   : 'text-gray-500 hover:text-white hover:bg-surface-border'
               )}
             >
@@ -636,7 +636,7 @@ function OperationalAnalytics() {
               label="Overall MTTR"
               value={mttr.data.overall_mttr_hours?.toFixed(2)}
               suffix="h"
-              color="text-accent-cyan"
+              color="text-accent-blue"
             />
             {Object.keys(mttr.data.mttr_hours ?? {}).length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

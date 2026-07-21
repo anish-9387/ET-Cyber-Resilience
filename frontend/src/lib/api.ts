@@ -146,11 +146,17 @@ export interface LikelyNextMove {
   rationale: string;
 }
 
+export interface Capability {
+  capability: string;
+  demonstrated_by: string[];
+  strength: number;
+}
+
 export interface AttackerBelief {
   current_objective: string;
   objective_confidence: number;
   inferred_knowledge: string[];
-  capabilities: string[];
+  capabilities: Capability[];
   sophistication: string;
   risk_appetite: string;
   persistence: string;

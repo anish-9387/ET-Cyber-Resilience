@@ -142,14 +142,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Logo */}
         <div className={cn('flex items-center h-16 px-4 border-b border-surface-border', collapsed && 'justify-center')}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative shrink-0">
-              <Shield className="h-8 w-8 text-accent-cyan" />
-              <div className="absolute -inset-1 bg-accent-cyan/20 rounded-full blur-md" />
+            <div className="shrink-0">
+              <Shield className="h-8 w-8 text-accent-blue" />
             </div>
             {!collapsed && (
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-white truncate">Sentinel-X</h1>
-                <p className="text-[10px] text-accent-cyan font-mono">CYBER RESILIENCE</p>
+                <p className="text-[10px] text-gray-500 font-mono">Cyber Resilience Platform</p>
               </div>
             )}
           </div>
@@ -174,9 +173,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     onClick={() => setMobileOpen(false)}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
-                      active
-                        ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20'
-                        : 'text-gray-400 hover:text-white hover:bg-surface-border',
+                    active
+                      ? 'bg-accent-blue/10 text-accent-blue'
+                      : 'text-gray-400 hover:text-white hover:bg-surface-border',
                       collapsed && 'justify-center px-2'
                     )}
                     title={collapsed ? item.label : undefined}
@@ -184,7 +183,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Icon className="h-5 w-5 shrink-0" />
                     {!collapsed && <span>{item.label}</span>}
                     {active && !collapsed && (
-                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-cyan shadow-glow-cyan" />
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-blue" />
                     )}
                   </Link>
                 );
@@ -233,8 +232,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               <div className="relative group">
                 <button className="flex items-center gap-2 p-1 rounded-lg hover:bg-surface-border transition-colors">
-                  <div className="w-8 h-8 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center">
-                    <User className="h-4 w-4 text-accent-cyan" />
+                  <div className="w-8 h-8 rounded-full bg-accent-blue/20 border border-accent-blue/30 flex items-center justify-center">
+                    <User className="h-4 w-4 text-accent-blue" />
                   </div>
                 </button>
                 {/* Dropdown */}

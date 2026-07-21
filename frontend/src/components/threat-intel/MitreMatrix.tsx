@@ -213,7 +213,7 @@ export function MitreMatrix() {
               placeholder="Search techniques by name or ID…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-blue/50"
             />
           </div>
           <button
@@ -300,7 +300,7 @@ export function MitreMatrix() {
                 <Badge variant={selected.detected ? 'danger' : 'default'} size="sm">
                   {selected.detected ? 'OBSERVED' : 'NOT OBSERVED'}
                 </Badge>
-                <span className="text-xs font-mono text-accent-cyan">
+                <span className="text-xs font-mono text-accent-blue">
                   {selected.id}
                 </span>
                 <span className="text-xs text-white font-medium">

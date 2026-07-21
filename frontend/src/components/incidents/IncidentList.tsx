@@ -106,7 +106,7 @@ export function IncidentList({
                 setSearch(e.target.value);
                 setPage(0);
               }}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan/50"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-blue/50"
             />
           </div>
           <select
@@ -115,7 +115,7 @@ export function IncidentList({
               setFilterSeverity(e.target.value);
               setPage(0);
             }}
-            className="px-2 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-cyan/50"
+            className="px-2 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-blue/50"
           >
             <option value="all">All Severities</option>
             {['critical', 'high', 'medium', 'low'].map((s) => (
@@ -130,7 +130,7 @@ export function IncidentList({
               setFilterStatus(e.target.value);
               setPage(0);
             }}
-            className="px-2 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-cyan/50"
+            className="px-2 py-1.5 text-xs bg-surface border border-surface-border rounded-lg text-gray-300 focus:outline-none focus:border-accent-blue/50"
           >
             <option value="all">All Statuses</option>
             {Object.keys(statusOrder).map((s) => (
@@ -199,10 +199,10 @@ export function IncidentList({
                     className={cn(
                       'border-b border-surface-border transition-colors',
                       onSelect && 'cursor-pointer hover:bg-surface/30',
-                      selectedId === inc.id && 'bg-accent-cyan/5'
+                      selectedId === inc.id && 'bg-accent-blue/5'
                     )}
                   >
-                    <td className="px-4 py-3 font-mono text-accent-cyan whitespace-nowrap">
+                    <td className="px-4 py-3 font-mono text-accent-blue whitespace-nowrap">
                       {inc.id.slice(0, 8)}
                     </td>
                     <td className="px-4 py-3 font-medium text-white">{inc.title}</td>
