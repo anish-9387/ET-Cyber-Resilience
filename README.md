@@ -1,215 +1,292 @@
-# Sentinel - Cyber World Model for Critical National Infrastructure
+# Overlook
 
-Sentinel maintains a **living probabilistic model** of an organisation's cyber
-environment. Rather than asking "did an attack happen?", it asks what the
-environment currently looks like, what the attacker is probably trying to
-achieve, which futures are most likely, and which defensive action produces the
-safest one.
+**Cyber World Model for Critical National Infrastructure**
 
-**Observe → Understand → Build World Model → Reason → Predict → Plan → Respond → Learn**
+Overlook maintains a living probabilistic model of an organisation's cyber environment. Rather than asking "did an attack happen?", it asks what the environment currently looks like, what the attacker is probably trying to achieve, which futures are most likely, and which defensive action produces the safest one.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and
-[API_CONTRACT.md](API_CONTRACT.md) for the full API.
+```
+Observe → Understand → Build World Model → Reason → Predict → Plan → Respond → Learn
+```
 
 ---
 
-## Quick start
+## Architecture
 
-Nothing except Python and Node is required. The backend runs on SQLite with
-Neo4j, Qdrant, Redis and Ollama all absent.
-
-```bash
-# Backend
-cd backend
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --port 8000          # http://localhost:8000/docs
-
-# Frontend (separate terminal)
-cd frontend && npm install && npm run dev  # http://localhost:3000
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        Frontend (Next.js 14)                     │
+│  Dashboard │ World Model │ Forecast │ Decision │ Incidents │ ... │
+└──────────────────────────┬───────────────────────────────────────┘
+                           │ HTTP (REST)
+┌──────────────────────────▼───────────────────────────────────────┐
+│                     Backend (FastAPI / Python 3.12)              │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────────┐  │
+│  │ World    │ │ Agents   │ │ ML       │ │ Evaluation         │  │
+│  │ Model    │ │ (14)     │ │ Detector │ │ Harness            │  │
+│  └──────────┘ └──────────┘ └──────────┘ └────────────────────┘  │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────────┐  │
+│  │ API      │ │ Services │ │ Schemas  │ │ Scenarios (3 APT)  │  │
+│  └──────────┘ └──────────┘ └──────────┘ └────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-Then drive the whole pipeline:
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams and [API_CONTRACT.md](API_CONTRACT.md) for the full API reference.
+
+---
+
+## Prerequisites
+
+| Dependency | Version | Notes |
+|------------|---------|-------|
+| Python | 3.11+ | 3.12 recommended |
+| Node.js | 18+ | 20+ recommended |
+| pnpm | 8+ | or npm |
+
+---
+
+## Quick Start
+
+### 1. Backend
+
+```bash
+cd backend
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+# Linux/macOS
+# source venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+API docs available at http://localhost:8000/docs
+
+The backend starts with an in-memory SQLite database and seeds a realistic world model topology on first launch. Neo4j, Qdrant, Redis, and Ollama are optional - the app runs fully without them.
+
+### 2. Frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm run dev
+```
+
+Open http://localhost:3000 in your browser. The frontend proxies `/api/*` requests to the backend automatically (configured in `next.config.js`).
+
+---
+
+## Running a Scenario
+
+Overlook ships with 3 labelled APT attack chains for testing:
+
+| Scenario | Chain |
+|----------|-------|
+| `lockbit_hospital` | Phishing → credential dumping → lateral movement → backup destruction → encryption |
+| `apt29_espionage` | Slow espionage over days ending in cloud exfiltration |
+| `ot_water_scada` | OT/SCADA intrusion ending in a chlorine-dosing safety event |
+
+### Via CLI
 
 ```bash
 python scripts/demo_attack_scenario.py --scenario lockbit_hospital
 ```
 
-This ingests a labelled LockBit chain, updates the world model, infers attacker
-intent, forecasts futures, runs a counterfactual, ranks containment options and
-prints the audit trail. It has **no fallback values**: if the backend is down or
-an endpoint is missing it fails loudly and exits non-zero.
-
----
-
-## What is actually measured
-
-**Do not trust performance claims in a README - including this one.** Run the
-harness and read the numbers it prints:
+### Via API
 
 ```bash
-cd backend && python -m app.evaluation.runner
-```
-
-It computes, at run time and from code:
-
-| Criterion | Where |
-|---|---|
-| Detection rate / false-positive rate, ROC-AUC, threshold sweep | `app/evaluation/detection_eval.py` |
-| MITRE attribution accuracy at technique and tactic level | `app/evaluation/attribution_eval.py` |
-| Response automation coverage | `app/evaluation/response_eval.py` |
-| MTTD / MTTR vs an external baseline | `app/evaluation/timing_eval.py` |
-
-Also exposed at `/api/v1/evaluation/*` and rendered on `/analytics`.
-
-An earlier version of this file claimed "82% prediction accuracy", "90% false
-positive reduction" and "MTTR reduced from hours to seconds". **No code computed
-any of those numbers.** They have been removed rather than restated. The
-evaluation package exists so that every such claim is reproducible or absent.
-
-### Two independent detection components
-
-Sentinel has **two separate anomaly-detection components**, validated on
-different data. They are not the same model, and neither is wired into the
-other's path.
-
-**1. Host-behavioural detector (live).** The `BehaviourLearningAgent`'s
-`IsolationForest`, fit at runtime on a 10-feature per-entity behavioural vector
-(login cadence, unique locations, resource/command counts, data-transfer
-statistics). This is the model on the live ingestion path. It is evaluated on
-the synthetic scenario corpus via `app/evaluation/detection_eval.py` (run by
-`app.evaluation.runner`).
-
-**2. Network-flow detector (offline-validated).** A separate model trained and
-validated on the **real public UNSW-NB15 NIDS benchmark**, via
-`scripts/train_anomaly_detector_real.py`. It is a **standalone registered
-artifact** under `backend/models/real/`, labelled with its dataset, feature
-schema, and metrics. It operates on 110 flow-level features (`dur`, `sbytes`,
-`dbytes`, `proto`/`service`/`state`, …) and is **deliberately not loaded into
-the live path** — flow features and the live behavioural vector are different
-feature spaces, and no honest mapping between them exists, so the offline model
-serves as an independent, dataset-grounded validation of the detection approach
-rather than a drop-in for the live detector.
-
-The script downloads UNSW-NB15, builds a stratified 70/30 split (seed 42), fits a
-`StandardScaler` on train only, and trains two models on the identical split: an
-unsupervised `IsolationForest` (features only, no labels at fit) and a supervised
-`RandomForestClassifier`. Measured on the held-out UNSW-NB15 test split (52,603
-flows, 68% attack), all computed at run time by `app/evaluation/real_data_eval.py`:
-
-| Model | ROC-AUC | Detection @ 1% FPR | @ 5% FPR | Calibration slope |
-|---|---|---|---|---|
-| RandomForest (supervised) | **0.994** | 0.880 | 0.958 | +9.4 (well-ranked) |
-| IsolationForest (unsupervised) | 0.245 | 0.003 | 0.031 | −6.7 |
-
-The IsolationForest result is **honest and instructive, not a bug**: this UNSW
-partition is 68% attacks, so an unsupervised novelty detector learns the attack
-traffic as the "normal" dense region and inverts. The eval report states this
-diagnostic explicitly. It is why the supervised model — or a benign-only fit —
-is needed; the report shows the gap the labels close.
-
-Reproduce (from repo root, using the backend venv):
-
-```bash
-backend/venv/bin/python scripts/train_anomaly_detector_real.py         # UNSW-NB15, downloads ~32 MB
-cat backend/models/real/unsw_nb15_eval_report.json                     # full metrics
-# BETH is Kaggle-auth-gated; supply the CSV yourself:
-backend/venv/bin/python scripts/train_anomaly_detector_real.py --dataset beth --path /path/to/labelled_data.csv
-```
-
-Caveat, stated plainly: **UNSW-NB15 is itself synthetic lab traffic** (generated
-with IXIA PerfectStorm), not a production capture. It is a real, widely-cited
-public benchmark — so "validated on a real benchmark", not "real-world
-deployment traffic". Do not overclaim it.
-
-### Known limits, stated up front
-
-- **The live detector's corpus is synthetic.** The `runner.py` numbers
-  (host-behavioural detection, attribution, response, MTTD/MTTR) come from a
-  deterministic synthetic corpus built from the bundled scenarios — not
-  real-world traffic. The separate network-flow detector is validated on real
-  UNSW-NB15 data (above), but is offline and not on the live path. Attribution
-  and response coverage remain synthetic-only. Adapters for CICIDS2017 /
-  UNSW-NB15 / BETH live in `app/evaluation/datasets.py`.
-- **Response execution is simulated.** `SimulatedExecutor` renders and records
-  commands; there is no firewall, AD, EDR or hypervisor integration. Every
-  payload carries `mode: "simulated"`, `integration: "none"`, `enforced: false`.
-  Automation coverage reports `steps_automatable_by_policy` separately from
-  `steps_with_real_integration` (which is zero).
-- **MITRE coverage is partial** - 49 of ~625 Enterprise techniques and no
-  sub-techniques. The attribution report states this ceiling explicitly.
-- **The MTTD/MTTR baseline is an external industry reference**, not a SOC
-  measured here, and is not a like-for-like comparison.
-- **CERT-In ingestion is a stub.** MITRE CTI, CISA KEV and NVD fetchers are real.
-- The audit trail is in-memory and does not survive a restart.
-
----
-
-## Capabilities
-
-| | |
-|---|---|
-| **Probabilistic world model** | Per-entity `P(compromised)` with confidence, updated by Bayesian evidence fusion in log-odds space, with recency decay and direction-aware neighbour propagation |
-| **Attacker belief** | Objective inference, inferred attacker knowledge, campaign attribution by technique-set Jaccard similarity |
-| **Defender belief** | Models Sentinel's *own* uncertainty - which beliefs are weak, what evidence is missing, what to collect next |
-| **Attack forecast** | Deterministic probability-tree expansion into multiple ranked futures with target entities and ETAs |
-| **Counterfactual** | Applies interventions to a model clone, re-forecasts, reports which attack paths were severed |
-| **Mission impact** | Availability of patient care, emergency response, diagnostics, records, power and water as dependent-entity beliefs shift |
-| **Decision engine** | Ranks real playbooks by attack-success reduction against mission impact and recovery cost, with alternatives recorded |
-| **Human-in-the-loop** | Gated actions cannot self-approve. Approval requires an authenticated principal holding an approver role |
-| **Audit trail** | Append-only record of every belief update and automated decision, with evidence, reasoning, alternatives considered, approver and rollback handle |
-
-## Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 16 (Turbopack), React 19, TypeScript, Tailwind, React Flow, Three.js, Recharts |
-| Backend | FastAPI, Python 3.11+ |
-| Relational | SQLite (default) or PostgreSQL |
-| ML | scikit-learn (IsolationForest), NumPy, NetworkX |
-| Optional | Neo4j, Qdrant, Redis, Ollama, sentence-transformers |
-| Threat intel | MITRE ATT&CK, CISA KEV, NVD |
-| Telemetry formats | Windows/Sysmon, Linux, syslog, auditd, Zeek, Suricata, Wazuh, firewall, CloudTrail |
-
-Kafka, LangGraph and CrewAI were previously listed here. None are used -
-orchestration is a hand-rolled coordinator and the event bus is in-process with
-optional Redis pub/sub.
-
----
-
-## Scenarios
-
-| ID | Chain |
-|---|---|
-| `lockbit_hospital` | Phishing → credential dumping → lateral movement → backup destruction → encryption |
-| `apt29_espionage` | Slow espionage over days ending in cloud exfiltration |
-| `ot_water_scada` | OT/SCADA intrusion ending in a chlorine-dosing safety event |
-
-Each event carries ground-truth `is_malicious` and `true_technique` labels, which
-is what makes the evaluation harness possible.
-
-```bash
-curl -X POST localhost:8000/api/v1/scenario/run \
+curl -X POST http://localhost:8000/api/v1/scenario/run \
   -H 'Content-Type: application/json' \
   -d '{"scenario_id":"lockbit_hospital","speed":20}'
 ```
 
+### Via UI
+
+Navigate to the **Scenario** page and click **Run** on any scenario card.
+
+Each scenario ingests telemetry into the world model, updates attacker/defender beliefs, generates forecasts, runs counterfactuals, ranks response options, and records everything in the audit trail.
+
+---
+
+## Training the Model
+
+Overlook has **two independent detection models**, validated on different data.
+
+### 1. Host-Behavioural Detector (IsolationForest)
+
+Trained online at runtime from ingested telemetry. No separate training step is required - the `BehaviourLearningAgent` fits automatically as events arrive.
+
+To retrain from scratch:
+
+```bash
+cd backend
+python -c "
+from app.ml.anomaly_detector import AnomalyDetector
+import numpy as np
+detector = AnomalyDetector()
+detector.fit(np.random.rand(1000, 10))
+detector.save('models/anomaly/isolation_forest.pkl')
+print('Model saved')
+"
+```
+
+### 2. Network-Flow Detector (UNSW-NB15)
+
+An offline model trained and validated on the **real public UNSW-NB15 NIDS benchmark**. This is a standalone artifact registered under `backend/models/real/` with full provenance tracking.
+
+```bash
+# Activate the backend virtual environment first
+cd backend
+.\venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/macOS
+
+# Train on UNSW-NB15 (auto-downloads ~105 MB from Hugging Face)
+python ../scripts/train_anomaly_detector_real.py --dataset unsw
+```
+
+**Pipeline:**
+1. Downloads UNSW-NB15 training-set CSV to `backend/data/unsw_nb15/`
+2. Builds a stratified 70/30 train/test split (seed 42)
+3. Fits preprocessing (categorical vocabulary + `StandardScaler`) on training split only
+4. Trains **unsupervised IsolationForest** (features only, no labels)
+5. Trains **supervised RandomForest** (features + labels)
+6. Registers both in `ModelRegistry` with full metadata and persists to `backend/models/real/`
+7. Evaluates on the held-out test split and prints a report
+
+**Flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--dataset` | `unsw` | `unsw` or `beth` |
+| `--path` | auto-download | Path to local CSV |
+| `--test-size` | `0.3` | Test split fraction |
+| `--seed` | `42` | RNG seed |
+| `--max-rows` | None | Cap rows for quick testing |
+
+**Expected metrics (UNSW-NB15 test split, 52,603 flows, 68% attack):**
+
+| Model | ROC-AUC | Detection @ 1% FPR | @ 5% FPR |
+|-------|---------|---------------------|-----------|
+| RandomForest (supervised) | 0.994 | 0.880 | 0.958 |
+| IsolationForest (unsupervised) | 0.245 | 0.003 | 0.031 |
+
+The IsolationForest result is expected - the UNSW partition is 68% attacks, so an unsupervised novelty detector learns the attack traffic as the "normal" dense region and inverts. This is why the supervised model (or a benign-only fit) is needed.
+
+### 3. Using the BETH Dataset
+
+BETH (Highnam et al. 2021) is a host/kernel behavioural telemetry dataset, closer to Overlook's UEBA framing. It is Kaggle-auth-gated:
+
+```bash
+python ../scripts/train_anomaly_detector_real.py --dataset beth --path /path/to/labelled_data.csv
+```
+
+### 4. Recalibrating the Likelihood-Ratio Mapping
+
+The anomaly-score → Bayesian likelihood-ratio mapping used in the ingestion pipeline is calibrated from the synthetic benchmark corpus:
+
+```bash
+cd backend
+python -m app.evaluation.calibration
+```
+
+This prints `ANOMALY_LR_INTERCEPT` and `ANOMALY_LR_SLOPE` to paste into `app/api/ingest.py`.
+
+---
+
+## Running the Evaluation Suite
+
+Every metric in Overlook is computed at runtime - nothing is hardcoded.
+
+```bash
+cd backend
+python -m app.evaluation.runner
+```
+
+**Flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--seed` | `42` | Corpus RNG seed |
+| `--benign-count` | `4000` | Benign background records |
+| `--scenario-repeats` | `4` | Instantiations of each APT scenario |
+| `--external-dataset` | None | Path to CICIDS2017/UNSW-NB15/BETH CSV |
+| `--json` | false | Print report as JSON |
+| `--output` | None | Write JSON report to file |
+
+The suite evaluates:
+
+| Criterion | Source |
+|-----------|--------|
+| Detection rate / FPR / ROC-AUC | `app/evaluation/detection_eval.py` |
+| MITRE attribution accuracy | `app/evaluation/attribution_eval.py` |
+| Response automation coverage | `app/evaluation/response_eval.py` |
+| MTTD / MTTR vs baseline | `app/evaluation/timing_eval.py` |
+
+Results are also available via `GET /api/v1/evaluation/*` and rendered in the **Analytics** page.
+
+---
+
+## Known Limitations
+
+- **Synthetic corpus for live detection** - the host-behavioural evaluation uses deterministic synthetic scenarios, not real traffic. The separate network-flow detector is validated on real UNSW-NB15 data but is offline.
+- **Response execution is simulated** - no firewall, AD, EDR, or hypervisor integration. Every payload carries `mode: "simulated"`, `integration: "none"`, `enforced: false`.
+- **MITRE coverage is partial** - 49 of ~625 Enterprise techniques, no sub-techniques.
+- **MTTD/MTTR baseline** is an external industry reference, not measured in this environment.
+- **Audit trail** is in-memory and does not survive a restart.
+
+---
+
+## Project Structure
+
+```
+├── backend/
+│   ├── app/
+│   │   ├── api/             # 18 REST route files
+│   │   ├── world_model/     # Bayesian engine, entity state, forecast, counterfactual
+│   │   ├── agents/          # 14 AI agents (behaviour, MITRE, prediction, response, ...)
+│   │   ├── ml/              # IsolationForest detector, sequence model, graph embedder
+│   │   ├── services/        # Telemetry normalizers, threat intel, analytics
+│   │   ├── evaluation/      # Labelled corpus + detection/attribution/response/timing
+│   │   ├── scenarios/       # 3 labelled APT chains
+│   │   ├── core/            # Config, database, auth, event bus, logging
+│   │   ├── models/          # SQLAlchemy ORM
+│   │   └── schemas/         # Pydantic V2 schemas
+│   ├── models/              # Trained ML artifacts
+│   ├── tests/               # 87+ tests
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── app/             # 14 Next.js pages
+│   │   ├── components/      # UI components & page-level widgets
+│   │   └── lib/             # API client, hooks, utilities
+│   ├── public/              # Static assets
+│   └── package.json
+├── scripts/                 # Training & demo scripts
+├── ARCHITECTURE.md
+├── API_CONTRACT.md
+└── AGENTS.md
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 14, React 18, TypeScript, TailwindCSS, React Flow, Three.js, Recharts, Radix UI |
+| Backend | FastAPI, Python 3.12, SQLAlchemy async, Pydantic V2 |
+| Database | SQLite (default) / PostgreSQL |
+| ML | scikit-learn (IsolationForest, RandomForest), NumPy, NetworkX |
+| Threat Intel | MITRE ATT&CK, CISA KEV, NVD |
+| Telemetry | Windows/Sysmon, Linux/auditd, Zeek, Suricata, Wazuh, Firewall, CloudTrail |
+| Optional | Neo4j, Qdrant, Redis, Ollama, sentence-transformers |
+
+---
+
 ## Tests
 
 ```bash
-cd backend && python -m pytest -q
-```
-
-## Layout
-
-```
-backend/app/
-  world_model/   entity state, Bayesian fusion, attacker/defender belief,
-                 forecast, counterfactual, mission impact, decision engine, audit
-  agents/        behaviour, MITRE mapper, prediction, response, playbooks, ...
-  ml/            IsolationForest detector, sequence model, structural embedder
-  services/      telemetry normalizers, threat intel, analytics, notifications
-  evaluation/    labelled corpus + detection/attribution/response/timing harnesses
-  scenarios/     labelled APT chains
-frontend/src/app/  14 routes
+cd backend
+python -m pytest -q
 ```

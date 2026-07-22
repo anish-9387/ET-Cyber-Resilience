@@ -1,4 +1,4 @@
-"""Labelled benchmark corpus for the Sentinel evaluation harness.
+"""Labelled benchmark corpus for the Overlook evaluation harness.
 
 HONESTY STATEMENT
 -----------------

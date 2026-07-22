@@ -29,7 +29,7 @@ function Meter({ value, color = '#06b6d4' }: { value: number; color?: string }) 
   );
 }
 
-/** GET /world-model/attacker-belief — what Sentinel infers about the adversary. */
+/** GET /world-model/attacker-belief — what Overlook infers about the adversary. */
 export function AttackerBeliefPanel() {
   const state = useApi(() => api.getAttackerBelief(), [], 3000);
   const belief = state.data;
@@ -217,7 +217,7 @@ export function AttackerBeliefPanel() {
   );
 }
 
-/** GET /world-model/defender-belief — what Sentinel knows it does NOT know. */
+/** GET /world-model/defender-belief — what Overlook knows it does NOT know. */
 export function DefenderBeliefPanel() {
   const state = useApi(() => api.getDefenderBelief(), [], 3000);
   const belief = state.data;
@@ -252,7 +252,7 @@ export function DefenderBeliefPanel() {
             </div>
             <Meter value={belief.overall_confidence} />
             <p className="text-[10px] text-gray-500 mt-1.5">
-              How much Sentinel trusts its own picture of the estate.
+              How much Overlook trusts its own picture of the estate.
             </p>
           </div>
 

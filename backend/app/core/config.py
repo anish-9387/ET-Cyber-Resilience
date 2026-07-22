@@ -3,7 +3,7 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Sentinel"
+    APP_NAME: str = "Overlook"
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
 

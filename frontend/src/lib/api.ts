@@ -1,5 +1,5 @@
 /**
- * Sentinel API client.
+ * Overlook API client.
  *
  * Aligned with API_CONTRACT.md (v1). All routes are mounted under /api/v1.
  *
@@ -717,7 +717,7 @@ class ApiClient {
       response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
     } catch (cause) {
       throw new ApiError(
-        `Cannot reach the Sentinel backend at ${API_BASE}`,
+        `Cannot reach the Overlook backend at ${API_BASE}`,
         0,
         endpoint,
         true

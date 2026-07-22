@@ -423,7 +423,7 @@ async def _main_async(args: argparse.Namespace) -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m app.evaluation.runner",
-        description="Run the Sentinel evaluation suite and print a report.",
+        description="Run the Overlook evaluation suite and print a report.",
     )
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
                         help=f"corpus RNG seed (default {DEFAULT_SEED})")

@@ -87,7 +87,7 @@ function OfflineState({ error, onRetry }: { error: ApiError; onRetry?: () => voi
       <div>
         <p className="text-sm font-medium text-accent-red">Backend unreachable</p>
         <p className="text-xs text-gray-400 mt-1 max-w-md">
-          Could not connect to the Sentinel API. No data is being displayed
+           Could not connect to the Overlook API. No data is being displayed
           because none could be retrieved.
         </p>
         <p className="text-[10px] text-gray-600 font-mono mt-2">{API_BASE}</p>
@@ -106,7 +106,7 @@ function OfflineState({ error, onRetry }: { error: ApiError; onRetry?: () => voi
 
 /**
  * The route exists in API_CONTRACT.md but no router is mounted for it yet.
- * This is the honest rendering for the Sentinel route groups that the backend
+ * This is the honest rendering for the Overlook route groups that the backend
  * has not built — the page structure is real, the data genuinely is not there.
  */
 function NotImplementedState({

@@ -147,8 +147,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <h1 className="text-lg font-bold text-white truncate">Sentinel-X</h1>
-                <p className="text-[10px] text-gray-500 font-mono">Cyber Resilience Platform</p>
+                <Link href="/dashboard">
+                  <img src="/logo.jpeg" alt="Overlook" className="h-8 w-auto" />
+                </Link>
               </div>
             )}
           </div>

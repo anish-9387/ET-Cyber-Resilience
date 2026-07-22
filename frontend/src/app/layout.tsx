@@ -5,9 +5,13 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Sentinel-X | Cyber Resilience Platform',
+  title: 'Overlook | Cyber Resilience Platform',
   description:
     'Advanced cyber resilience platform with AI-driven defense agents, digital twin simulation, and real-time threat intelligence.',
+  icons: {
+    icon: '/logo.jpeg',
+    apple: '/logo.jpeg',
+  },
 };
 
 export default function RootLayout({

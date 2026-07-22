@@ -27,7 +27,7 @@ them:
 
 The headline ``coverage_pct`` is derived from policy only, and every payload
 carries ``effective_autonomous_containment_pct: 0.0`` alongside it so the number
-cannot be read as "Sentinel autonomously contains X% of incidents".
+cannot be read as "Overlook autonomously contains X% of incidents".
 """
 
 from __future__ import annotations

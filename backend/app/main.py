@@ -13,7 +13,7 @@ from app.world_model import world_model
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("sentinel_starting", version=settings.APP_VERSION)
+    logger.info("overlook_starting", version=settings.APP_VERSION)
 
     try:
         await init_db()
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
     yield
 
     await close_db()
-    logger.info("sentinel_shutdown_complete")
+    logger.info("overlook_shutdown_complete")
 
 
 app = FastAPI(

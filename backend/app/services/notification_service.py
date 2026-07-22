@@ -29,7 +29,7 @@ class NotificationTemplate:
     def __init__(self):
         self._templates: Dict[str, str] = {
             "alert": {
-                "subject": "[{severity}] Sentinel-X Alert: {title}",
+                "subject": "[{severity}] Overlook Alert: {title}",
                 "body": "Alert Details\n{separator}\nTitle: {title}\nSeverity: {severity}\nSource: {source}\nTime: {timestamp}\nDescription: {description}\n\nAction Required: {action_url}"
             },
             "incident_created": {
@@ -45,12 +45,12 @@ class NotificationTemplate:
                 "body": "SLA Breach Alert\n{separator}\nIncident: {title}\nPriority: {priority}\nDeadline: {deadline}\nElapsed: {elapsed}\n\nImmediate action required: {action_url}"
             },
             "daily_digest": {
-                "subject": "Sentinel-X Daily Digest - {date}",
+                "subject": "Overlook Daily Digest - {date}",
                 "body": "Daily Digest\n{separator}\nDate: {date}\nNew Incidents: {new_incidents}\nResolved: {resolved}\nOpen: {open}\nAlerts: {alerts}\n\nReview: {action_url}"
             },
             "test": {
-                "subject": "Sentinel-X Test Notification",
-                "body": "This is a test notification from Sentinel-X.\nTime: {timestamp}"
+                "subject": "Overlook Test Notification",
+                "body": "This is a test notification from Overlook.\nTime: {timestamp}"
             }
         }
 
@@ -144,13 +144,13 @@ class SlackSender:
         try:
             payload = {
                 "channel": f"#{channel}",
-                "username": "Sentinel-X",
+                "username": "Overlook",
                 "icon_emoji": ":shield:",
                 "attachments": [{
                     "color": self._get_color(body),
                     "title": subject,
                     "text": body,
-                    "footer": "Sentinel-X Notification",
+                    "footer": "Overlook Notification",
                     "ts": datetime.utcnow().timestamp()
                 }]
             }
@@ -187,7 +187,7 @@ class TeamsSender:
                 "summary": subject,
                 "sections": [{
                     "activityTitle": subject,
-                    "activitySubtitle": f"Sentinel-X | {datetime.utcnow().isoformat()}",
+                    "activitySubtitle": f"Overlook | {datetime.utcnow().isoformat()}",
                     "text": body,
                     "markdown": True
                 }]

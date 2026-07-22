@@ -377,12 +377,12 @@ function EvaluationSection() {
                       {
                         name: 'MTTD',
                         Baseline: t.baseline_mttd_minutes,
-                        Sentinel: t.sentinel_mttd_minutes,
+                        Overlook: t.sentinel_mttd_minutes,
                       },
                       {
                         name: 'MTTR',
                         Baseline: t.baseline_mttr_minutes,
-                        Sentinel: t.sentinel_mttr_minutes,
+                        Overlook: t.sentinel_mttr_minutes,
                       },
                     ]}
                     margin={{ top: 5, right: 8, left: -20, bottom: 0 }}
@@ -403,7 +403,7 @@ function EvaluationSection() {
                     <Tooltip contentStyle={tooltipStyle} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
                     <Bar dataKey="Baseline" fill="#64748b" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="Sentinel" fill="#06b6d4" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Overlook" fill="#4a8eff" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

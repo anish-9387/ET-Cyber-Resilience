@@ -187,7 +187,7 @@ def assess_defender_belief(model: Any) -> Dict[str, Any]:
                     "gap": "no_telemetry",
                     "detail": (
                         f"None of the {counts['total']} '{entity_type}' entities have produced a single "
-                        f"first-party observation; Sentinel is blind to this class."
+                        f"first-party observation; Overlook is blind to this class."
                     ),
                     "recommended_collection": COLLECTION_BY_ENTITY_TYPE.get(entity_type, []),
                 }

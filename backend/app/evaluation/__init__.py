@@ -1,4 +1,4 @@
-"""Sentinel evaluation harness.
+"""Overlook evaluation harness.
 
 This package computes *real, reproducible* numbers for the five criteria the
 project is judged on:
