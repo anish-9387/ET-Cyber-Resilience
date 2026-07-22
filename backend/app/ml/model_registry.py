@@ -1,9 +1,14 @@
+import json
 import os
 import pickle
 from typing import Dict, Any, Optional, Type
 from datetime import datetime
 from app.core.logger import logger
 from app.core.config import settings
+
+
+def _meta_path(model_path: str) -> str:
+    return f"{model_path}.meta.json"
 
 
 class ModelRegistry:
@@ -44,6 +49,8 @@ class ModelRegistry:
             pickle.dump(model, f)
         self._metadata[name]["saved_at"] = datetime.utcnow().isoformat()
         self._metadata[name]["path"] = save_path
+        with open(_meta_path(save_path), "w") as f:
+            json.dump(self._metadata[name], f, indent=2, default=str)
         logger.info("Model '%s' saved to %s", name, save_path)
 
     def load(self, name: str, path: Optional[str] = None):
@@ -53,12 +60,18 @@ class ModelRegistry:
         with open(load_path, "rb") as f:
             model = pickle.load(f)
         self._models[name] = model
-        self._metadata[name] = {
-            "name": name,
-            "type": type(model).__name__,
-            "loaded_at": datetime.utcnow().isoformat(),
-            "path": load_path
-        }
+        meta_file = _meta_path(load_path)
+        if os.path.exists(meta_file):
+            with open(meta_file) as f:
+                self._metadata[name] = json.load(f)
+            self._metadata[name]["loaded_at"] = datetime.utcnow().isoformat()
+        else:
+            self._metadata[name] = {
+                "name": name,
+                "type": type(model).__name__,
+                "loaded_at": datetime.utcnow().isoformat(),
+                "path": load_path,
+            }
         logger.info("Model '%s' loaded from %s", name, load_path)
         return model
 

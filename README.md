@@ -67,11 +67,70 @@ positive reduction" and "MTTR reduced from hours to seconds". **No code computed
 any of those numbers.** They have been removed rather than restated. The
 evaluation package exists so that every such claim is reproducible or absent.
 
+### Two independent detection components
+
+Sentinel has **two separate anomaly-detection components**, validated on
+different data. They are not the same model, and neither is wired into the
+other's path.
+
+**1. Host-behavioural detector (live).** The `BehaviourLearningAgent`'s
+`IsolationForest`, fit at runtime on a 10-feature per-entity behavioural vector
+(login cadence, unique locations, resource/command counts, data-transfer
+statistics). This is the model on the live ingestion path. It is evaluated on
+the synthetic scenario corpus via `app/evaluation/detection_eval.py` (run by
+`app.evaluation.runner`).
+
+**2. Network-flow detector (offline-validated).** A separate model trained and
+validated on the **real public UNSW-NB15 NIDS benchmark**, via
+`scripts/train_anomaly_detector_real.py`. It is a **standalone registered
+artifact** under `backend/models/real/`, labelled with its dataset, feature
+schema, and metrics. It operates on 110 flow-level features (`dur`, `sbytes`,
+`dbytes`, `proto`/`service`/`state`, …) and is **deliberately not loaded into
+the live path** — flow features and the live behavioural vector are different
+feature spaces, and no honest mapping between them exists, so the offline model
+serves as an independent, dataset-grounded validation of the detection approach
+rather than a drop-in for the live detector.
+
+The script downloads UNSW-NB15, builds a stratified 70/30 split (seed 42), fits a
+`StandardScaler` on train only, and trains two models on the identical split: an
+unsupervised `IsolationForest` (features only, no labels at fit) and a supervised
+`RandomForestClassifier`. Measured on the held-out UNSW-NB15 test split (52,603
+flows, 68% attack), all computed at run time by `app/evaluation/real_data_eval.py`:
+
+| Model | ROC-AUC | Detection @ 1% FPR | @ 5% FPR | Calibration slope |
+|---|---|---|---|---|
+| RandomForest (supervised) | **0.994** | 0.880 | 0.958 | +9.4 (well-ranked) |
+| IsolationForest (unsupervised) | 0.245 | 0.003 | 0.031 | −6.7 |
+
+The IsolationForest result is **honest and instructive, not a bug**: this UNSW
+partition is 68% attacks, so an unsupervised novelty detector learns the attack
+traffic as the "normal" dense region and inverts. The eval report states this
+diagnostic explicitly. It is why the supervised model — or a benign-only fit —
+is needed; the report shows the gap the labels close.
+
+Reproduce (from repo root, using the backend venv):
+
+```bash
+backend/venv/bin/python scripts/train_anomaly_detector_real.py         # UNSW-NB15, downloads ~32 MB
+cat backend/models/real/unsw_nb15_eval_report.json                     # full metrics
+# BETH is Kaggle-auth-gated; supply the CSV yourself:
+backend/venv/bin/python scripts/train_anomaly_detector_real.py --dataset beth --path /path/to/labelled_data.csv
+```
+
+Caveat, stated plainly: **UNSW-NB15 is itself synthetic lab traffic** (generated
+with IXIA PerfectStorm), not a production capture. It is a real, widely-cited
+public benchmark — so "validated on a real benchmark", not "real-world
+deployment traffic". Do not overclaim it.
+
 ### Known limits, stated up front
 
-- **The benchmark corpus is synthetic.** Deterministic under a fixed seed, built
-  from the bundled scenarios. It is not real-world performance. An adapter for
-  CICIDS2017 / UNSW-NB15 / BETH is documented in `app/evaluation/datasets.py`.
+- **The live detector's corpus is synthetic.** The `runner.py` numbers
+  (host-behavioural detection, attribution, response, MTTD/MTTR) come from a
+  deterministic synthetic corpus built from the bundled scenarios — not
+  real-world traffic. The separate network-flow detector is validated on real
+  UNSW-NB15 data (above), but is offline and not on the live path. Attribution
+  and response coverage remain synthetic-only. Adapters for CICIDS2017 /
+  UNSW-NB15 / BETH live in `app/evaluation/datasets.py`.
 - **Response execution is simulated.** `SimulatedExecutor` renders and records
   commands; there is no firewall, AD, EDR or hypervisor integration. Every
   payload carries `mode: "simulated"`, `integration: "none"`, `enforced: false`.

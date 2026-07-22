@@ -57,3 +57,7 @@ frontend/out/
 backend/sentinel.db
 *.sqlite
 backend/models/
+backend/data/
+backend/models/real/
+*.pkl
+*.pkl.meta.json
